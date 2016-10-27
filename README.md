@@ -3,7 +3,7 @@ A cpp implementation of near-field SAR. The original code is written in MATLAB.
 
 Using armadillo to do matrix/cube transformation and opencv to plot.
 
-Armadillo can installed here http://arma.sourceforge.net/download.html.
+Armadillo can be downloaded here http://arma.sourceforge.net/download.html.
 
 OpenCV can be downloaded from https://github.com/opencv/opencv. This is the most recent update.
 
