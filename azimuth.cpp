@@ -13,9 +13,11 @@ using namespace arma;
 #include <math.h> 
 using namespace std;
 
-// a cpp implementation of matlab function fftshift
-// dim == 1 means row operation
-// dim == 2 means col operation
+/*
+a cpp implementation of matlab function fftshift
+dim == 1 means row operation
+dim == 2 means col operation
+*/
 cx_mat fftshift(cx_mat x,int dim){
 	cx_mat res(size(x));
 	if(dim==1){
@@ -31,9 +33,11 @@ cx_mat fftshift(cx_mat x,int dim){
 	return res;
 }
 
-// a cpp implementation of matlab function ifftshift
-// dim == 1 means row operation
-// dim == 2 means col operation
+/*
+a cpp implementation of matlab function ifftshift
+dim == 1 means row operation
+dim == 2 means col operation
+*/
 cx_mat ifftshift(cx_mat x,int dim){
 	cx_mat res(size(x));
 	if(dim==1){
@@ -179,6 +183,11 @@ cx_mat simulated_2Ddechirped_data (cx_vec pos, vec freq, cx_vec tar, cx_vec tar_
 }
 
 int main() {
+
+	// time start
+	time_t tstart, tend; 
+	tstart = time(0);
+
 	double dynamic_range = 30;         
 	double c = 299792458;
 	double f_start = 28000000000;
@@ -251,38 +260,7 @@ int main() {
 	// mat rm = abs(ifft(S_echo));
 	// S_echo 51*200
 	cout<<"S_echo dim "<<S_echo.n_rows<<" * "<<S_echo.n_cols<<endl;
-	// for(uword i=0;i<rm.n_rows;i++){
-	// 	cout<<be4abs(i,0)<<endl;
-	// }
 
-	// cv::Mat img0( rm.n_rows, rm.n_cols, CV_8UC1, rm.memptr());
-	// cv::Mat image;
-	// applyColorMap(img0, image, COLORMAP_HOT);
-	// namedWindow( "Display window", WINDOW_NORMAL);
-	// imshow("Display window", image);
-	// waitKey(0);
-
-/*
-
-rm = ifft(S_echo);                                      %¾àÀëáã¶¯Í¼Ïñ
-figure(204)
-imagesc(x_array,[],abs(rm))
-title('¾àÀëáã¶¯Ê¾ÒâÍ¼')
-figure(205)
-imagesc(kx,[],abs(fftshift(fft(rm,[],2),2)))
-title('¾àÀë¶àÆÕÀÕÓò')
-
-S_echo = fftshift(S_echo,2);                             %½«S_echo½øÐÐ¸µÀïÒ¶Æ½ÒÆ£¬£¨ÑØ×ÅµÚ¶þÎ¬£¿£©
-S_kx = fft(S_echo,FNx,2);                                %½«S_echoµÄµÚ¶þÎ¬£¨ÌìÏßÔªÊýÄ¿£©µÄ·½Ïò½øÐÐ¸µÀïÒ¶±ä»»£¬Æä·µ»Ø½á¹ûÊÇS_kx
-S_kx = fftshift(S_kx,2);                                 %¶ÔS_kxÑØµÚ¶þÎ¬½øÐÐÒ»´Î¸µÀïÒ¶Æ½ÒÆ£¬
-
-figure(1);                                               %Éú³ÉÍ¼Ïñ1
-imagesc(kx,k,abs(S_kx));                                 %½«S_kxµÄ¾ø¶ÔÖµÏÔÊ¾ÎªÍ¼Ïñ£¬ºáÖáÎªkx,×ÝÖáÎªk,    imagesc(x,y,c)½«ÊäÈë±äÁ¿cÏÔÊ¾ÎªÍ¼Ïñ£¬ÓÃx,y±äÁ¿È·¶¨x,yÖáµÄ±ß½ç
-axis xy;                                                 %Éè¶¨MatlabÎªÄ¬ÈÏÏÔÊ¾Ä£Ê½,xÖáË®Æ½ÇÒ×óÐ¡ÓÒ´ó£¬yÖá´¹Ö±ÇÒµ×Ð¡¶¥´ó¡£ÈôÃ»ÓÐÕâ¸öÉè¶¨£¬ÒòÎªkÖµÊÇ¶¥²¿Ð¡µ×²¿´ó£¬Í¼Ïñ½«ÉÏÏÂµßµ¹
-title('spatial frequency');                              %Éè¶¨±êÌâ   ¡°¿Õ¼äÆµÂÊ¡±
-xlabel('kx');ylabel('k'); 
-
-*/
 	double FFT_NUM_Multi_x = 2;
 	double FFT_NUM_Multi_z = 2;
 
@@ -445,6 +423,9 @@ xlabel('kx');ylabel('k');
     cout<<"image_r_x dim "<<image_r_x.n_rows<<" * "<<image_r_x.n_cols<<endl;                                                          
 
     cout<<"tar_amp_vec dim "<<tar_amp_vec.n_rows<<" * "<<tar_amp_vec.n_cols<<endl;
+    for(uword i =0;i<tar_amp_vec.n_elem;i++){
+    	cout<<tar_amp_vec(i)<<endl;
+    }
     mat image_r_x_mat = abs(image_r_x);
     image_r_x_mat = tar_amp_vec.max() * image_r_x_mat / image_r_x_mat.max();
     cout<<"image_r_x_mat dim "<<image_r_x_mat.n_rows<<" * "<<image_r_x_mat.n_cols<<endl; 
@@ -473,13 +454,12 @@ xlabel('kx');ylabel('k');
 
 	*/
 
-    /*
-    ofstream myfile;
+	ofstream myfile;
     myfile.open ("example.txt");
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
-    		if(image_r_x_mat(i,j) + dynamic_range < image_r_x_mat.max()){
-    			image_r_x_mat(i,j) = image_r_x_mat.max() - dynamic_range;
+    		if(image_r_x_mat(i,j) < img_bg){
+    			image_r_x_mat(i,j) = img_bg;
     		}
     		myfile << image_r_x_mat(i,j)<<" ";
 
@@ -489,10 +469,12 @@ xlabel('kx');ylabel('k');
     }
     cout<<"eof"<<endl;
     myfile.close();
-
-    */
-
+    
     image_r_x_mat.save("image_r_x_mat.txt",arma_ascii);
+
+    // time end
+    tend = time(0); 
+    cout << "It took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	return 0;
 	
