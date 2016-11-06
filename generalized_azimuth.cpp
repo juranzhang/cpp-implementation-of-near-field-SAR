@@ -11,11 +11,14 @@ using namespace arma;
 #include <iostream>
 #include <fstream>
 #include <math.h> 
+#include <ctime>
 using namespace std;
 
-// a cpp implementation of matlab function fftshift
-// dim == 1 means row operation
-// dim == 2 means col operation
+/* 
+a cpp implementation of matlab function fftshift
+dim == 1 means row operation
+dim == 2 means col operation
+*/
 cx_mat fftshift(cx_mat x,int dim){
 	cx_mat res(size(x));
 	if(dim==1){
@@ -31,9 +34,11 @@ cx_mat fftshift(cx_mat x,int dim){
 	return res;
 }
 
-// a cpp implementation of matlab function ifftshift
-// dim == 1 means row operation
-// dim == 2 means col operation
+/*
+a cpp implementation of matlab function ifftshift
+dim == 1 means row operation
+dim == 2 means col operation
+*/
 cx_mat ifftshift(cx_mat x,int dim){
 	cx_mat res(size(x));
 	if(dim==1){
@@ -125,123 +130,12 @@ cx_vec vec2cx_vec(vec a, double imaginary_part) {
 	return res;
 }
 
-cx_mat simulated_2Ddechirped_data (cx_vec pos, vec freq, cx_vec tar, cx_vec tar_amp) {
-	int speed_light = 299792458;
-	uword tar_dim = tar.n_elem;
-	uword freq_dim = freq.n_elem;
-	uword pos_dim = pos.n_elem;
-
-	//reshape and repmat
-	cx_cube tar_cube(freq_dim, pos_dim, tar_dim);
-	cx_cube pos_cube(freq_dim, pos_dim, tar_dim);
-	cube freq_cube(freq_dim, pos_dim, tar_dim);
-	cx_cube tar_amp_cube(freq_dim, pos_dim, tar_dim);
-	
-	for(uword i = 0; i<freq_dim;++i){
-		for(uword j = 0;j<pos_dim;++j){
-			for(uword k=0;k<tar_dim;++k){
-				tar_cube(i,j,k) = tar(k);
-				pos_cube(i,j,k) = pos(j);
-				freq_cube(i,j,k) = freq(i);
-				tar_amp_cube(i,j,k) = tar_amp(k);
-			}
-		}
-	}
-
-	cube D = abs(tar_cube - pos_cube);
-	
-	// wavenumber
-	cube wavenumber = 2 * M_PI/ speed_light * freq_cube ;
-	
-	// SISO response
-	cube be4exp_realpart = -2* (wavenumber % D);
-
-	// euler's formula
-	cube afterexp_realpart = cos(be4exp_realpart);
-	cube afterexp_imgpart = sin(be4exp_realpart);
-	cx_cube afterexp(afterexp_realpart,afterexp_imgpart);
-	cx_cube resp = tar_amp_cube % afterexp;
-	
-	// sum
-	cx_mat siso_resp(freq_dim, pos_dim);
-	cx_double z_sum;
-	for(uword i = 0; i<freq_dim;++i){
-		for(uword j = 0;j<pos_dim;++j){
-			z_sum.real(0);
-			z_sum.imag(0);
-			for(uword k=0;k<tar_dim;++k){
-				z_sum = z_sum+resp(i,j,k);
-			}
-			siso_resp(i,j) = z_sum;
-		}
-	}
-	return siso_resp;
-}
-
 int main() {
-/*  
-	double c = 299792458;
-	double f_start = 28000000000;
-	double f_stop = 33000000000;
-	double deltf = 100000000;
-	double B = f_stop-f_start;
 
-	// number of frequency
-	double Nf = floor(B/deltf)+1;
-	cout<<"Nf:"<<Nf<<endl;
-	f_stop = f_start + (Nf-1)*deltf;
-	B = f_stop-f_start;
+	// time start
+	time_t tstart, tend; 
+	tstart = time(0);
 
-	// generate a vector of Nf freq
-	vec freq = linspace<vec>(f_start,f_stop,Nf);
-	freq.t();
-
-	vec k = 2 * M_PI * freq/c; 
-	double deltkr=k(1)-k(0);
-	double deltkz = 2 * deltkr; 
-	double f_mid = f_start+B/2;
-	double lam_max = c/f_start;
-	double lam_mid = c/f_mid;
-	double lam_min = c/f_stop;     
-	double resolution_y = c/2/B;
-	printf("resolution_y: %e \n", resolution_y);
-
-	double R0 = 5 ; 
-	double array_length = 2;
-	double dx = 0.01;
-	double Nx = round(array_length/dx);  
-	if (Nx/2-round(Nx/2)!=0) {
-		Nx = Nx+1;
-	}                   
-	printf("Nx: %e \n", Nx);
-
-	vec x_array = linspace<vec> (-Nx * dx/2, (Nx/2 - 1)*dx, Nx);
-	cout<<"x_array length: "<<x_array.n_elem<<endl;
-	
-	array_length = x_array(Nx-1) - x_array(0);
-	printf("array_length: %e \n", array_length);
-
-	double Theta_antenna = 2*atan((x_array(Nx-1)-x_array(0))/2/R0);
-	double resolution_x_theory = lam_max/4/sin(Theta_antenna/2);
-	double antenna_space = lam_min/4/sin(Theta_antenna/2);
-	printf("resolution_x_theory: %e \n", resolution_x_theory);
-	printf("antenna_space: %e \n", antenna_space);
-
-	// initialize target.
-	cx_vec tar(5);
-	tar(0) = cx_double(0,0);
-	tar(1) = cx_double(0,0.3);
-	tar(2) = cx_double(0.3,0.3);
-	tar(3) = cx_double(-0.3,0.3);
-	tar(4) = cx_double(0.1,-0.3);
-	
-	// fill cube of the same size with ones. size(1,1,tar_dim)
-	vec tar_amp_vec(size(tar),fill::ones);
-	cx_vec tar_amp = vec2cx_vec(tar_amp_vec,0);
-
-	// initialize pos
-	cx_vec X_array = vec2cx_vec(x_array,R0);
-	*/
 	// import echo data
 	mat S_echo_real;
 	S_echo_real.load("real2d.txt",arma_ascii);
@@ -249,7 +143,6 @@ int main() {
 	S_echo_imag.load("imag2d.txt",arma_ascii);
 
 	cx_mat S_echo(S_echo_real,S_echo_imag);
-
 	S_echo = fftshift(S_echo,2);
 
 	double Nf = S_echo.n_rows;
@@ -439,8 +332,8 @@ int main() {
 
     image_r_x_mat = 20*log10(image_r_x_mat);
 
+    // opencv plot
     /*
-
     double img_bg = image_r_x_mat.max() - dynamic_range;
 
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
@@ -462,15 +355,16 @@ int main() {
 
 	*/
 
-	/*
+	// make the background dark
 	double dynamic_range = 30; 
-    
+    double img_bg = image_r_x_mat.max() - dynamic_range;
+
     ofstream myfile;
     myfile.open ("example.txt");
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
-    		if(image_r_x_mat(i,j) + dynamic_range < image_r_x_mat.max()){
-    			image_r_x_mat(i,j) = image_r_x_mat.max() - dynamic_range;
+    		if(image_r_x_mat(i,j) < img_bg){
+    			image_r_x_mat(i,j) = img_bg;
     		}
     		myfile << image_r_x_mat(i,j)<<" ";
 
@@ -480,9 +374,12 @@ int main() {
     }
     cout<<"eof"<<endl;
     myfile.close();
-    */
-
+    
     image_r_x_mat.save("image_r_x_mat.txt",arma_ascii);
+
+    // time end
+    tend = time(0); 
+    cout << "It took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	return 0;
 	
