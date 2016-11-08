@@ -16,11 +16,11 @@ An installation guide can be found here: http://stackoverflow.com/questions/1967
 
 1. Azimuth.cpp 
 
-Azimuth.cpp creates a simulated target that consists of 5 dots and processes the points into received signal (S_echo in the .cpp file). The received signal is then computed to retrieve the target. This .cpp file aims to test and give a simple demo of the retrieving algorithm.
+Azimuth.cpp creates a simulated target that consists of 5 spots and processes the target into received signal (S_echo in the .cpp file). The received signal is then computed to reconstruct the target. This .cpp file aims to test and give a simple demo of the construction algorithm.
 
 2. Generalized_azimuth.cpp
 
-This is the main program that retrieve real received 2D signal.
+This is the main program that reconstruct real 2D signal. The signal is stored in 'real2d.txt' and 'imag2d.txt'.
 
 
 ## How to play with Azimuth.cpp
@@ -48,3 +48,4 @@ This is the main program that retrieve real received 2D signal.
 ‘g++ azimuth.cpp \`pkg-config --libs --cflags opencv\` -o example1 -O2 -larmadillo’
 
 You'll need to install pkg-config before compiling
+
