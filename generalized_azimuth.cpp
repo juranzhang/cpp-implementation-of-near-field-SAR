@@ -143,8 +143,8 @@ int main() {
 	S_echo_imag.load("imag2d.txt",arma_ascii);
 
 	cx_mat S_echo(S_echo_real,S_echo_imag);
-	S_echo = fftshift(S_echo,2);
 
+	double system_delay = 2.069;	
 	double Nf = S_echo.n_rows;
 	double Nx = S_echo.n_cols;
 	double R0 = 5 ;
@@ -155,6 +155,12 @@ int main() {
 
 	vec freq = linspace<vec>(f_start,f_stop,Nf);
 	vec k = 2 * M_PI * freq/c;
+
+	// repmat(reshape(freq,[1,Nf]),[Nx,1])
+	mat freq_mat = vec2mat_y(freq,Nx);
+	cx_mat delay(cos(2*M_PI*freq_mat*2*system_delay/c),sin(2*M_PI*freq_mat*2*system_delay/c));
+	S_echo = S_echo % delay;
+	S_echo = fftshift(S_echo,2);
 
 	double deltkr=k(1)-k(0);
 	double deltkz = 2 * deltkr; 
