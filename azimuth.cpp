@@ -190,9 +190,9 @@ int main() {
 
 	double dynamic_range = 30;         
 	double c = 299792458;
-	double f_start = 25000000000;
-	double f_stop = 30000000000;
-	double deltf = 100000000;
+	double f_start = 28000000000;
+	double f_stop = 33000000000;
+	double deltf = 50000000;
 	double B = f_stop-f_start;
 
 	// number of frequency
