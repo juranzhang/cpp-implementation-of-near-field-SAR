@@ -9,7 +9,6 @@ using namespace cv;
 using namespace arma;
 
 #include <iostream>
-#include <fstream>
 #include <math.h> 
 #include <ctime>
 using namespace std;
@@ -380,22 +379,15 @@ int main() {
 	double dynamic_range = 50; 
     double img_bg = image_r_x_mat.max() - dynamic_range;
 
-    ofstream myfile;
-    myfile.open ("example.txt");
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
     		if(image_r_x_mat(i,j) < img_bg){
     			image_r_x_mat(i,j) = img_bg;
     		}
-    		myfile << image_r_x_mat(i,j)<<" ";
-
     	}
-    	myfile << "\n";
     	cout<<i<<endl;
     }
     cout<<"eof"<<endl;
-    myfile.close();
-    
     image_r_x_mat.save("image_r_x_mat.txt",arma_ascii);
 
     // time end
