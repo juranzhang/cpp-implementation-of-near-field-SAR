@@ -9,7 +9,6 @@ using namespace cv;
 using namespace arma;
 
 #include <iostream>
-#include <fstream>
 #include <math.h> 
 using namespace std;
 
@@ -190,8 +189,8 @@ int main() {
 
 	double dynamic_range = 30;         
 	double c = 299792458;
-	double f_start = 28000000000;
-	double f_stop = 33000000000;
+	double f_start = 25000000000;
+	double f_stop = 30000000000;
 	double deltf = 100000000;
 	double B = f_stop-f_start;
 
@@ -434,6 +433,7 @@ int main() {
 
     double img_bg = image_r_x_mat.max() - dynamic_range;
 
+    // opencv plot
     /*
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
@@ -445,32 +445,24 @@ int main() {
     }
     cout<<"eof"<<endl;
 
-    cv::Mat img0( image_r_x_mat.n_rows, image_r_x_mat.n_cols, CV_8UC1, image_r_x_mat.memptr());
-	cv::Mat image;
-	applyColorMap(img0, image, COLORMAP_HOT);
-	namedWindow( "Display window", WINDOW_NORMAL);
-	imshow("Display window", image);
-	waitKey(0);
-
+    cv::Mat img0( image_r_x_mat.n_rows, image_r_x_mat.n_cols, CV_64F, image_r_x_mat.memptr());
+	imshow("Display window", img0);
+	waitKey(10000);
 	*/
 
-	ofstream myfile;
-    myfile.open ("example.txt");
+	// export to txt file
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
     		if(image_r_x_mat(i,j) < img_bg){
     			image_r_x_mat(i,j) = img_bg;
     		}
-    		myfile << image_r_x_mat(i,j)<<" ";
-
     	}
-    	myfile << "\n";
     	cout<<i<<endl;
     }
     cout<<"eof"<<endl;
-    myfile.close();
     
     image_r_x_mat.save("image_r_x_mat.txt",arma_ascii);
+    
 
     // time end
     tend = time(0); 
