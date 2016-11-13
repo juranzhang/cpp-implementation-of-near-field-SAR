@@ -462,7 +462,7 @@ int main() {
     }
     cout<<"eof"<<endl;
     
-    image_r_x_mat.save("image_r_x_mat.txt",arma_ascii);
+    image_r_x_mat.save("resulting_image.txt",arma_ascii);
     
 
     // time end
