@@ -72,6 +72,7 @@ mat sinc(mat x){
 	}
 	return res;
 }
+
 // hamming window function, return a mat(1,L)
 mat hamming(uword L){
 	mat res(1,L);
