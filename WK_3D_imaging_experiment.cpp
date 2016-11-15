@@ -167,9 +167,9 @@ cx_mat fftshift(cx_mat x,int dim){
 }
 
 /*
-a cpp implementation of matlab function ifftshift
-dim == 1 means row operation
-dim == 2 means col operation
+	a cpp implementation of matlab function ifftshift
+	dim == 1 means row operation
+	dim == 2 means col operation
 */
 cx_mat ifftshift(cx_mat x,int dim){
 	cx_mat res(size(x));
@@ -223,19 +223,13 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 	cube ky_cub = vec2cub_yz(ky,Nx,kz_dim);
 
 	cube identity = k(0) * ones<cube>(Ny, Nx, kz_dim);
-	cout<<k(0)<<endl;
 	cube DKZ = 0.5*sqrt(pow(kx_cub,2) + pow(ky_cub,2) + pow(kz_interp_cub,2)) - identity;
-	
-	cout<<DKZ.max()<<endl;
-	cout<<deltkr<<endl;
 	cube NDKZ = floor_cube(DKZ/deltkr);
 	
 	double NDKZ_min = NDKZ.min();
 	double NDKZ_max = NDKZ.max();
-	cout<<NDKZ_min<<" "<<NDKZ_max<<endl;
 	
 	cx_cube B1(Ny,Nx,NDKZ_max-NDKZ_min+p+1,fill::zeros);
-	cout<<"B1: "<<size(B1)<<endl;
 	B1(0,0,-NDKZ_min,size(Ny,Nx,Nf)) = S_matched;
 
 	mat win_interp = hamming(2*p);
@@ -253,8 +247,6 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 				for(uword k=0;k<NN.n_elem;k++){
 					NN(0,k) = NDKZ(i,j,q)+k+1-p;
 					be4sinc(0,k) = DKZ(i,j,q)/deltkr - NN(0,k);
-					cout<<NN(0,k)-NDKZ_min<<endl;
-					cout<<size(B1)<<endl;
 					B2(k,0) = B1(i,j,NN(0,k)-NDKZ_min);
 				}
 				mat be4stolt_real = win_interp % sinc(be4sinc);
@@ -294,7 +286,7 @@ int main() {
 	cube secho_real = transform(S_echo_real);
 	cube secho_imag = transform(S_echo_imag);
 	cx_cube S_echo(secho_real,secho_imag);
-	cout<<size(S_echo)<<endl;
+	
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -328,6 +320,7 @@ int main() {
 	vec ky = linspace(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
 
 	cx_cube S_kxy(size(S_echo));
+	
 	// fftshift and fft2 for each slice
 	for(uword k=0;k<S_echo.n_slices;k++){
 		S_echo.slice(k) = fftshift(S_echo.slice(k),1);
@@ -348,12 +341,13 @@ int main() {
 	double ky_max = 2*k(0)*sin(Theta_antenna/2);
 	
 	cx_cube Stolt = stolt_interrupt(S_matched,k,kx,ky,kz_interp,deltkr,kx_max,ky_max,p);
-
-	cout<<"0,0,10: "<<Stolt(0,0,10)<<endl;
-	cout<<"20,0,10: "<<Stolt(20,0,10)<<endl;
-	cout<<"0,20,20: "<<Stolt(0,20,20)<<endl;
+	
+	cout<<Stolt(0,0,3)<<endl;
+	cout<<Stolt(0,1,3)<<endl; //16079
+	cout<<Stolt(1,0,3)<<endl; //-19050
 
 	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
+
 	// pad zeros to increase Stolt dimmension
 	cx_cube complex_image_cx(point_number,point_number,point_number,fill::zeros);
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
@@ -366,16 +360,20 @@ int main() {
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
 			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				x_slice(j,k) = complex_image_cx(i,j,k);
+				x_slice(j,k) = complex_image_cx(i,k,j);
 			}
 		}
 		x_slice = ifft(x_slice);
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
 			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				complex_image_cx(i,j,k) = x_slice(j,k);
+				complex_image_cx(i,k,j) = x_slice(j,k);
 			}
 		}
 	}
+
+	cout<<complex_image_cx(1,0,3)<<endl; //5.33 75.80
+	cout<<complex_image_cx(0,1,3)<<endl; //-30.38 63.06
+
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
 		complex_image_cx.slice(k) = ifftshift(complex_image_cx.slice(k),1);
@@ -385,16 +383,18 @@ int main() {
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
 			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				x_slice(j,k) = complex_image_cx(i,j,k);
+				x_slice(j,k) = complex_image_cx(i,k,j);
 			}
 		}
 		x_slice = ifftshift(x_slice,1);
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
 			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				complex_image_cx(i,j,k) = x_slice(j,k);
+				complex_image_cx(i,k,j) = x_slice(j,k);
 			}
 		}
 	}
+	cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
+	cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
 	cube complex_image = 20*log10(abs(complex_image_cx)/abs(complex_image_cx).max());
@@ -419,5 +419,8 @@ int main() {
 	}
 	
 	resulting_image.save("resulting_image.txt",arma_ascii);
+	// time end
+    tend = time(0); 
+    cout << "It took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
