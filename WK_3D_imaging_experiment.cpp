@@ -275,6 +275,9 @@ int main() {
 	cube S_echo_imag;
 	S_echo_imag.load("secho_imag.txt",arma_ascii);
 	
+	tend = time(0); 
+    cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	uword Nf_downsample_factor = 12;
 
 	S_echo_real = downsample(S_echo_real,Nf_downsample_factor,2);
@@ -287,6 +290,9 @@ int main() {
 	cube secho_imag = transform(S_echo_imag);
 	cx_cube S_echo(secho_real,secho_imag);
 	
+	tend = time(0); 
+    cout << "Signal data pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -321,6 +327,9 @@ int main() {
 
 	cx_cube S_kxy(size(S_echo));
 	
+	tend = time(0); 
+    cout << "Other data processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	// fftshift and fft2 for each slice
 	for(uword k=0;k<S_echo.n_slices;k++){
 		S_echo.slice(k) = fftshift(S_echo.slice(k),1);
@@ -332,6 +341,9 @@ int main() {
 	
 	cx_cube S_matched = match_filter_3D(S_kxy,k,kx,ky,R0);
 
+	tend = time(0); 
+    cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	uword p = 4;
 	double kz_interp_min = 2*k(0)*cos(Theta_antenna/2);
 	double kz_interp_max = 2*k(k.n_elem-1);
@@ -342,9 +354,12 @@ int main() {
 	
 	cx_cube Stolt = stolt_interrupt(S_matched,k,kx,ky,kz_interp,deltkr,kx_max,ky_max,p);
 	
-	cout<<Stolt(0,0,3)<<endl;
-	cout<<Stolt(0,1,3)<<endl; //16079
-	cout<<Stolt(1,0,3)<<endl; //-19050
+	tend = time(0); 
+    cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	// cout<<Stolt(0,0,3)<<endl;
+	// cout<<Stolt(0,1,3)<<endl; //16079
+	// cout<<Stolt(1,0,3)<<endl; //-19050
 
 	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
 
@@ -371,8 +386,11 @@ int main() {
 		}
 	}
 
-	cout<<complex_image_cx(1,0,3)<<endl; //5.33 75.80
-	cout<<complex_image_cx(0,1,3)<<endl; //-30.38 63.06
+	tend = time(0); 
+    cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	// cout<<complex_image_cx(1,0,3)<<endl; //5.33 75.80
+	// cout<<complex_image_cx(0,1,3)<<endl; //-30.38 63.06
 
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
@@ -393,14 +411,34 @@ int main() {
 			}
 		}
 	}
-	cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
-	cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
+
+	tend = time(0); 
+    cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	// cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
+	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
 	cube complex_image = 20*log10(abs(complex_image_cx)/abs(complex_image_cx).max());
-	cube dynamic_range(size(complex_image));
-	dynamic_range.fill(bg);
-	complex_image = arma::max(complex_image,dynamic_range);
+
+	tend = time(0); 
+    cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	for(uword i=0;i<complex_image.n_rows;i++){
+		for(uword j=0;j<complex_image.n_cols;j++){
+			for(uword k=0;k<complex_image.n_slices;k++){
+				if(complex_image(i,j,k) < bg){
+					complex_image(i,j,k) = bg;
+				}
+			}
+		}
+	}
+	// cube dynamic_range(size(complex_image));
+	// dynamic_range.fill(bg);
+	// complex_image = arma::max(complex_image,dynamic_range);
+
+	tend = time(0); 
+    cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 0;
 	double max_cube = bg;
@@ -410,17 +448,22 @@ int main() {
 			index = k;
 		}
 	}
-	cout<<index<<endl;
+	// cout<<index<<endl;
+
+	tend = time(0); 
+    cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	mat resulting_image(complex_image.n_cols,complex_image.n_slices);
 	for(uword j=0;j<complex_image.n_rows;j++){
 		for(uword k=0;k<complex_image.n_cols;k++){
 			resulting_image(j,k) = complex_image(j,k,index);
 		}
 	}
-	
+
 	resulting_image.save("resulting_image.txt",arma_ascii);
+
 	// time end
     tend = time(0); 
-    cout << "It took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+    cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
