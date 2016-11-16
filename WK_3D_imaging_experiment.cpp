@@ -14,28 +14,25 @@ using namespace std;
 */
 cube downsample(cube S_echo,uword downsample_factor, int dim){
 	cube res;
-	uword i=0;
-	uword j=0;
-	uword new_col;
+	uword new_slice;
 	if(dim == 1) {
 
 	}
 
 	if(dim == 2) {
-		new_col = (S_echo.n_cols-1)/downsample_factor + 1;
-		res.set_size(S_echo.n_rows,new_col,S_echo.n_slices);
-		for(uword i=0;i<S_echo.n_rows;i++){
-			for(uword j=0;j<new_col;j++){
-				for(uword k=0;k<S_echo.n_slices;k++){
-					res(i,j,k) = S_echo(i,j*downsample_factor,k);
-				}
-			}
-		}
 		
 	}
 
 	if(dim == 3) {
-
+		new_slice = (S_echo.n_slices-1)/downsample_factor + 1;
+		res.set_size(S_echo.n_rows,S_echo.n_cols,new_slice);
+		for(uword i=0;i<S_echo.n_rows;i++){
+			for(uword j=0;j<S_echo.n_cols;j++){
+				for(uword k=0;k<new_slice;k++){
+					res(i,j,k) = S_echo(i,j,k*downsample_factor);
+				}
+			}
+		}
 	}
 	return res;
 
@@ -90,14 +87,31 @@ cube vec2cub_xz(vec y,uword x,uword z){
 }
 
 /*
-	reshape cube from x,y,z to x,z,y
+	reshape cube from x-y-z to z-x-y
 */
-cube transform(cube echo){
-	cube res(echo.n_rows,echo.n_slices,echo.n_cols);
+template <class cubeType>
+cubeType reshape_zxy(cubeType echo){
+	cubeType res(echo.n_slices,echo.n_rows,echo.n_cols);
 	for(uword i=0;i<res.n_rows;i++){
 		for(uword j=0;j<res.n_cols;j++){
 			for(uword k=0;k<res.n_slices;k++){
-				res(i,j,k) = echo(i,k,j);
+				res(i,j,k) = echo(j,k,i);
+			}
+		}
+	}
+	return res;
+}
+
+/*
+	reshape cube from x-y-z to y-z-x
+*/
+template <class cubeType>
+cubeType reshape_yzx(cubeType echo){
+	cubeType res(echo.n_cols,echo.n_slices,echo.n_rows);
+	for(uword i=0;i<res.n_rows;i++){
+		for(uword j=0;j<res.n_cols;j++){
+			for(uword k=0;k<res.n_slices;k++){
+				res(i,j,k) = echo(k,i,j);
 			}
 		}
 	}
@@ -270,29 +284,31 @@ int main() {
 	time_t tstart, tend; 
 	tstart = time(0);
 
-	cube S_echo_real;
-	S_echo_real.load("secho_real.h5",hdf5_binary);
-	cube S_echo_imag;
-	S_echo_imag.load("secho_imag.h5",hdf5_binary);
+	// load data from .hdf5 files
+	cube secho_real;
+	secho_real.load("secho_real.h5",hdf5_binary);
+	cube secho_imag;
+	secho_imag.load("secho_imag.h5",hdf5_binary);
 	
 	tend = time(0); 
     cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	uword Nf_downsample_factor = 12;
-
-	S_echo_real = downsample(S_echo_real,Nf_downsample_factor,2);
-	S_echo_imag = downsample(S_echo_imag,Nf_downsample_factor,2);
-
-	S_echo_real = S_echo_real(span(29,148),span::all,span(59,178));
-	S_echo_imag = S_echo_imag(span(29,148),span::all,span(59,178));
-
-	cube secho_real = transform(S_echo_real);
-	cube secho_imag = transform(S_echo_imag);
-	cx_cube S_echo(secho_real,secho_imag);
+	// reshape from x-y-z to z-x-y
+	cube S_echo_real = reshape_zxy<cube>(secho_real);
+	cube S_echo_imag = reshape_zxy<cube>(secho_imag);
 	
-	tend = time(0); 
-    cout << "Signal data pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	// downsampleing to reduce dim
+	uword Nf_downsample_factor = 12;
+	S_echo_real = downsample(S_echo_real,Nf_downsample_factor,3);
+	S_echo_imag = downsample(S_echo_imag,Nf_downsample_factor,3);
+	S_echo_real = S_echo_real(span(29,148),span(59,178),span::all);
+	S_echo_imag = S_echo_imag(span(29,148),span(59,178),span::all);
 
+	tend = time(0); 
+    cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+    // pre-processing and system delay
+    cx_cube S_echo(S_echo_real,S_echo_imag);
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -320,6 +336,7 @@ int main() {
 
 	cube freq_cub = vec2cub_xy(freq,Ny,Nx);
 	cx_cube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
+
 	S_echo = S_echo % delay;
 	
 	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
@@ -328,7 +345,7 @@ int main() {
 	cx_cube S_kxy(size(S_echo));
 	
 	tend = time(0); 
-    cout << "Other data processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+    cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// fftshift and fft2 for each slice
 	for(uword k=0;k<S_echo.n_slices;k++){
@@ -344,6 +361,7 @@ int main() {
 	tend = time(0); 
     cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
+    // Stolt interrupt
 	uword p = 4;
 	double kz_interp_min = 2*k(0)*cos(Theta_antenna/2);
 	double kz_interp_max = 2*k(k.n_elem-1);
@@ -357,10 +375,7 @@ int main() {
 	tend = time(0); 
     cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	// cout<<Stolt(0,0,3)<<endl;
-	// cout<<Stolt(0,1,3)<<endl; //16079
-	// cout<<Stolt(1,0,3)<<endl; //-19050
-
+    // data manipulation before plot
 	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
 
 	// pad zeros to increase dimmension of Stolt result
@@ -375,6 +390,7 @@ int main() {
 	tend = time(0); 
     cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
+    // third dimension ifft of ifftn
 	cx_mat x_slice(complex_image_cx.n_slices,complex_image_cx.n_cols);
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
@@ -392,9 +408,6 @@ int main() {
 
 	tend = time(0); 
     cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-	// cout<<complex_image_cx(1,0,3)<<endl; //5.33 75.80
-	// cout<<complex_image_cx(0,1,3)<<endl; //-30.38 63.06
 
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
@@ -439,9 +452,6 @@ int main() {
 			}
 		}
 	}
-	// cube dynamic_range(size(complex_image));
-	// dynamic_range.fill(bg);
-	// complex_image = arma::max(complex_image,dynamic_range);
 
 	tend = time(0); 
     cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
