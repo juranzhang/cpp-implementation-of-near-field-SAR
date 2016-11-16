@@ -1,5 +1,5 @@
 #define _USE_MATH_DEFINES
-
+#include <hdf5.h>
 #include <armadillo>
 using namespace arma;
 
@@ -271,9 +271,9 @@ int main() {
 	tstart = time(0);
 
 	cube S_echo_real;
-	S_echo_real.load("secho_real.txt",arma_ascii);
+	S_echo_real.load("secho_real.h5",hdf5_binary);
 	cube S_echo_imag;
-	S_echo_imag.load("secho_imag.txt",arma_ascii);
+	S_echo_imag.load("secho_imag.h5",hdf5_binary);
 	
 	tend = time(0); 
     cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
@@ -363,7 +363,7 @@ int main() {
 
 	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
 
-	// pad zeros to increase Stolt dimmension
+	// pad zeros to increase dimmension of Stolt result
 	cx_cube complex_image_cx(point_number,point_number,point_number,fill::zeros);
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
 
@@ -371,6 +371,10 @@ int main() {
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
 		complex_image_cx.slice(k) = ifft2(complex_image_cx.slice(k));
 	}
+
+	tend = time(0); 
+    cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
 	cx_mat x_slice(complex_image_cx.n_slices,complex_image_cx.n_cols);
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
@@ -387,7 +391,7 @@ int main() {
 	}
 
 	tend = time(0); 
-    cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+    cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// cout<<complex_image_cx(1,0,3)<<endl; //5.33 75.80
 	// cout<<complex_image_cx(0,1,3)<<endl; //-30.38 63.06
@@ -419,7 +423,9 @@ int main() {
 	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
-	cube complex_image = 20*log10(abs(complex_image_cx)/abs(complex_image_cx).max());
+	cube complex_image_cube = abs(complex_image_cx);
+	complex_image_cube = complex_image_cube/complex_image_cube.max();
+	cube complex_image = 20*log10(complex_image_cube);
 
 	tend = time(0); 
     cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
