@@ -66,6 +66,15 @@ The main program using WK algorithm to reconstruct 3D signal. The received signa
 6. `python plotdata.py` to see the resulting image.
 
 
+## How to run BP_3D_imaging.cpp
+
+1. Follow step 1.2.3 in WK_3D_imaging_experiment.cpp if you haven't run that program first.
+
+2. `g++ BP_3D_imaging.cpp -o BP_3D_imaging -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5` and run `./BP_3D_imaging` to save reconstructed imaging data into 'resulting_image.txt'.
+
+3. Same as the previous programs.
+
+
 ## How to compile if you are using opencv:
 
 `g++ azimuth.cpp 'pkg-config --libs --cflags opencv' -o example1 -O2 -larmadillo`
