@@ -26,8 +26,14 @@ A plotting tool in python as an alternative to opencv. It loads data from 'resul
 ### WK_3D_imaging_experiment.cpp
 The main program using WK algorithm to reconstruct 3D signal. The received signal is stored separately in 'secho_real.txt' and 'secho_imag.txt".
 
+### BP_3D_imaging.cpp
+The main program using BP algorithm to reconstruct 3D signal. This method is really slow compared to WK that takes 48 hours to run in Matlab.
 
-## How to play with Azimuth.cpp
+### stolt_mex.cpp
+This is the MEX file that is called in Matlab to improve speed of the stolt_interrupt function.
+
+
+## How to run Azimuth.cpp
 
 1. `g++ azimuth.cpp -o azimuth -O2 -larmadillo` and run `./azimuth` to save the image data into ‘resulting_image.txt’. 
 
@@ -36,7 +42,7 @@ The main program using WK algorithm to reconstruct 3D signal. The received signa
 3. ‘python plotdata.py’ to see the resulting image which has 5 bright dots.
 
 
-## How to play with Generalized_azimuth.cpp
+## How to run Generalized_azimuth.cpp
 
 1. (If you have custom received signal stored in a .mat file) use Matlab to get the dimensions of the input data. Then add ‘ARMA_MAT_TXT_FN008 num_row num_col’, as shown in ‘real2d.txt’ and ‘imag2d.txt’. The .cpp program will read ascii from the text files.
 
@@ -47,7 +53,7 @@ The main program using WK algorithm to reconstruct 3D signal. The received signa
 4. `python plotdata.py` to see the resulting image.
 
 
-## How to play with WK_3D_imaging_experiment.cpp
+## How to run WK_3D_imaging_experiment.cpp
 
 1. (If you have custom received signal stored in a .mat file) use Matlab to load the data and write into a hdf5 file. We are preserving data into hdf5 format because the data is pretty large with over 10 million complex doubles. This amount of data will take armadillo 20 seconds to read if stored in ascii text format.
   1. (In matlab) `h5create('secho_real.h5','/DS1',[200,320,200])`
@@ -66,6 +72,23 @@ The main program using WK algorithm to reconstruct 3D signal. The received signa
 6. `python plotdata.py` to see the resulting image.
 
 
+## Write Matlab MEX code to speed up stolt interrupt:
+
+In WK_3D_imaging_experiment.m, stolt_interrupt consumes most of the time (27s out of 30s in total). While if you run WK_3D_imaging_experiment.cpp by any chance, you will find out that stolt_interrupt takes only 2 seconds out of 20s in total (most of the time is consumed by fft and ifft operations). In order to improve the run time of either Matlab code or c++ code, it is either stolt_interrupt or fft operations that need to be optimized. One of the question is, can we optimize stolt_interrupt in Matlab? Thus, can we implement this function in c++ and call it in Matlab?
+
+MEX files are c++/c files that can be called in Matlab as functions. It needs to be compiled before being called along with other matlab instructions. Below is a quick tutorial for you to start with:
+
+Ref: https://classes.soe.ucsc.edu/ee264/Fall11/cmex.pdf
+
+#### How to run stolt_mex.cpp
+
+1. Write the command `mex stolt_mex.cpp` in Matlab (make sure it is in the same working space with WK_3D_imaging_experiment.m and data). This will compile the file using g++.
+
+2. Change the callee function from stolt_interrupt (a matlab file) to stolt_mex (name of the compiled MEX file). Input parameters remain the same. 
+
+3. Run WK_3D_imaging_experiment.m as usual and see the run time change.
+
+
 ## How to run BP_3D_imaging.cpp
 
 1. Follow step 1.2.3 in WK_3D_imaging_experiment.cpp if you haven't run that program first.
@@ -74,9 +97,6 @@ The main program using WK algorithm to reconstruct 3D signal. The received signa
 
 3. Same as the previous programs.
 
-## Write Matlab MEX code to speed up stolt interrupt:
-
-Ref: https://classes.soe.ucsc.edu/ee264/Fall11/cmex.pdf
 
 ## How to compile if you are using opencv:
 
