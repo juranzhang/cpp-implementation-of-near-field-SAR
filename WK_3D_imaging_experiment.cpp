@@ -237,6 +237,7 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 	cube ky_cub = vec2cub_yz(ky,Nx,kz_dim);
 
 	cube identity = k(0) * ones<cube>(Ny, Nx, kz_dim);
+	
 	cube DKZ = 0.5*sqrt(pow(kx_cub,2) + pow(ky_cub,2) + pow(kz_interp_cub,2)) - identity;
 	cube NDKZ = floor_cube(DKZ/deltkr);
 	
@@ -272,6 +273,7 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 					Stolt(i,j,q).real(0.0);
 					Stolt(i,j,q).imag(0.0);
 				}
+				
 			}
 			
 		}
