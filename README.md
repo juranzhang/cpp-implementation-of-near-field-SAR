@@ -72,6 +72,11 @@ This is the MEX file that is called in Matlab to improve speed of the stolt_inte
 6. `python plotdata.py` to see the resulting image.
 
 
+## How to run fftw_WK_3D_imaging_experiment.cpp
+
+`g++ fftw_WK_3D_imaging_experiment.cpp -o fftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lfftw3 -lm` and run `./fftw_WK_3D_imaging_experiment`
+
+
 ## Write Matlab MEX code to speed up stolt interrupt:
 
 In WK_3D_imaging_experiment.m, stolt_interrupt consumes most of the time (27s out of 30s in total). While if you run WK_3D_imaging_experiment.cpp by any chance, you will find out that stolt_interrupt takes only 2 seconds out of 20s in total (most of the time is consumed by fft and ifft operations). In order to improve the run time of either Matlab code or c++ code, it is either stolt_interrupt or fft operations that need to be optimized. One of the question is, can we optimize stolt_interrupt in Matlab? Thus, can we implement this function in c++ and call it in Matlab?
