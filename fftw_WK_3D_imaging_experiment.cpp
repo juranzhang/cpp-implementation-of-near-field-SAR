@@ -387,49 +387,20 @@ int main() {
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
 
 	// ifftn
-
-	fftw_complex *in;
 	fftw_plan fplan;
 	
-	fplan = fftw_plan_dft_3d(complex_image_cx.n_rows, complex_image_cx.n_cols, complex_image_cx.n_slices, in, in, FFTW_FORWARD, FFTW_MEASURE);
-	in = reinterpret_cast<fftw_complex*>(complex_image_cx.memptr());
+	fplan = fftw_plan_dft_3d(complex_image_cx.n_slices, complex_image_cx.n_cols, complex_image_cx.n_rows, (double(*)[2])&complex_image_cx(0,0,0), (double(*)[2])&complex_image_cx(0,0,0), FFTW_FORWARD, FFTW_ESTIMATE);
 	fftw_execute(fplan);
 
-	// fftw_destroy_plan(p);
-	
-	/*
-	// ifftn
-	for(uword k=0;k<complex_image_cx.n_slices;k++){
-		complex_image_cx.slice(k) = ifft2(complex_image_cx.slice(k));
-	}
-
 	tend = time(0); 
-    cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-    // third dimension ifft of ifftn
-	cx_mat x_slice(complex_image_cx.n_slices,complex_image_cx.n_cols);
-	for(uword i=0;i<complex_image_cx.n_rows;i++){
-		for(uword j=0;j<complex_image_cx.n_slices;j++){
-			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				x_slice(j,k) = complex_image_cx(i,k,j);
-			}
-		}
-		x_slice = ifft(x_slice);
-		for(uword j=0;j<complex_image_cx.n_slices;j++){
-			for(uword k=0;k<complex_image_cx.n_cols;k++){
-				complex_image_cx(i,k,j) = x_slice(j,k);
-			}
-		}
-	}
-	*/
-	tend = time(0); 
-    cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
+    cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+    
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
 		complex_image_cx.slice(k) = ifftshift(complex_image_cx.slice(k),1);
 		complex_image_cx.slice(k) = ifftshift(complex_image_cx.slice(k),2);
 	}
+	/*
 	cx_mat x_slice(complex_image_cx.n_slices,complex_image_cx.n_cols);
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
@@ -444,10 +415,10 @@ int main() {
 			}
 		}
 	}
-
+	*/
 	tend = time(0); 
     cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
+	
 	// cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
 	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
