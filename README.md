@@ -26,6 +26,9 @@ A plotting tool in python as an alternative to opencv. It loads data from 'resul
 ### WK_3D_imaging_experiment.cpp
 The main program using WK algorithm to reconstruct 3D signal. The received signal is stored separately in 'secho_real.txt' and 'secho_imag.txt".
 
+### fftw_WK_3D_imaging_experiment.cpp
+This file utilzie fftw to speed up fft in WK_3D_imaging_experiment.cpp. This will eventually be merged into WK_3D_imaging_experiment.cpp
+
 ### BP_3D_imaging.cpp
 The main program using BP algorithm to reconstruct 3D signal. This method is really slow compared to WK that takes 48 hours to run in Matlab.
 
