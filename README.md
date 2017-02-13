@@ -26,8 +26,14 @@ A plotting tool in python as an alternative to opencv. It loads data from 'resul
 ### WK_3D_imaging_experiment.cpp
 The main program using WK algorithm to reconstruct 3D signal. The received signal is stored separately in 'secho_real.txt' and 'secho_imag.txt".
 
+### ubuntu_WK_3D_imaging_experiment.cpp
+ubuntu version of the implementation. The only variation is the location of hdf5.h. If ld can't find libhdf5, try to create a symbolic link. `sudo ln -s /usr/lib/x86_64-linux-gnu/hdf5/serial/libhdf5.so /usr/lib/libhdf5.so`. The first path can be found by `locate libhdf5.so`.
+
 ### fftw_WK_3D_imaging_experiment.cpp
 This file utilzie fftw to speed up fft in WK_3D_imaging_experiment.cpp. This will eventually be merged into WK_3D_imaging_experiment.cpp
+
+### ubuntu_fftw_WK_3D_imaging_experiment.cpp
+ubuntu variation.
 
 ### BP_3D_imaging.cpp
 The main program using BP algorithm to reconstruct 3D signal. This method is really slow compared to WK that takes 48 hours to run in Matlab.
@@ -74,11 +80,16 @@ This is the MEX file that is called in Matlab to improve speed of the stolt_inte
 
 6. `python plotdata.py` to see the resulting image.
 
+## Command to run ubuntu_WK_3D_imaging_experiment.cpp
+
+`g++ ubuntu_WK_3D_imaging_experiment.cpp -o ubuntu_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5`
 
 ## How to run fftw_WK_3D_imaging_experiment.cpp
 
 `g++ fftw_WK_3D_imaging_experiment.cpp -o fftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lfftw3 -lm` and run `./fftw_WK_3D_imaging_experiment`
 
+## Command to compile ubuntu_fftw_3D_imaging_experiment.cpp
+`g++ ubuntu_fftw_WK_3D_imaging_experiment.cpp -o ubuntu_fftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lfftw3 -lm`
 
 ## Write Matlab MEX code to speed up stolt interrupt:
 
