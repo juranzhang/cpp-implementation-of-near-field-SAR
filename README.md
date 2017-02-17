@@ -92,7 +92,7 @@ This is the MEX file that is called in Matlab to improve speed of the stolt_inte
 `g++ ubuntu_fftw_WK_3D_imaging_experiment.cpp -o ubuntu_fftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lfftw3 -lm`
 
 ## Command to compile ubuntu_cufftw_3D_imaging_experiment.cpp
-`g++ ubuntu_cufftw_WK_3D_imaging_experiment.cpp -o ubuntu_cufftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lcufft -lcufftw -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lm`
+`nvcc ubuntu_cufftw_WK_3D_imaging_experiment.cpp -o ubuntu_cufftw_WK_3D_imaging_experiment -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lblas -llapack -larmadillo -lhdf5 -lcufft -lcufftw -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -lm`
 
 ## Write Matlab MEX code to speed up stolt interrupt:
 
