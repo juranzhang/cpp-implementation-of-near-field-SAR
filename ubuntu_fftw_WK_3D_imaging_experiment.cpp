@@ -3,7 +3,7 @@
 #include <armadillo>
 using namespace arma;
 
-#include <cufftw.h>
+#include <fftw3.h>
 
 #include <iostream>
 #include <math.h>
@@ -387,13 +387,10 @@ int main() {
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
 
 	// ifftn
-	cufftHandle plan;
-	cufftDoubleComplex *data = (cufftDoubleComplex*)&complex_image_cx(0,0,0);
+	fftw_plan fplan;
 
-	cufftPlan3d(&plan, complex_image_cx.n_slices, complex_image_cx.n_cols, complex_image_cx.n_rows, CUFFT_Z2Z);
-	cufftExecZ2Z(plan, data, data, CUFFT_INVERSE);
-	//cudaDeviceSynchronize();
-	cufftDestroy(plan);
+	fplan = fftw_plan_dft_3d(complex_image_cx.n_slices, complex_image_cx.n_cols, complex_image_cx.n_rows, (double(*)[2])&complex_image_cx(0,0,0), (double(*)[2])&complex_image_cx(0,0,0), FFTW_FORWARD, FFTW_ESTIMATE);
+	fftw_execute(fplan);
 
 	tend = time(0);
     cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
@@ -426,9 +423,15 @@ int main() {
 	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
-	cube complex_image_cube = abs(complex_image_cx);
-	complex_image_cube = complex_image_cube/complex_image_cube.max();
-	cube complex_image = 20*log10(complex_image_cube);
+
+	cube complex_image = abs(complex_image_cx);
+	tend = time(0);
+    cout << "abs operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	complex_image = complex_image/complex_image.max();
+	tend = time(0);
+    cout << "normal operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	//complex_image = 20*log10(complex_image);
+
 
 	tend = time(0);
     cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
