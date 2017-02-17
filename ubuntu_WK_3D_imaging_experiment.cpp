@@ -1,5 +1,5 @@
 #define _USE_MATH_DEFINES
-#include <hdf5/serial/hdf5.h>
+#include <hdf5.h>
 #include <armadillo>
 using namespace arma;
 
@@ -378,7 +378,7 @@ int main() {
     cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // data manipulation before plot
-	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
+	uword point_number = max(max(Nx,Ny),kz_dim) * 4;
 
 	// pad zeros to increase dimmension of Stolt result
 	cx_cube complex_image_cx(point_number,point_number,point_number,fill::zeros);
