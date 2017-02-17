@@ -4,7 +4,7 @@
 using namespace arma;
 
 #include <iostream>
-#include <math.h> 
+#include <math.h>
 #include <ctime>
 using namespace std;
 
@@ -20,7 +20,7 @@ cube downsample(cube S_echo,uword downsample_factor, int dim){
 	}
 
 	if(dim == 2) {
-		
+
 	}
 
 	if(dim == 3) {
@@ -160,7 +160,7 @@ mat hamming(uword L){
 	return res;
 }
 
-/* 
+/*
 	a cpp implementation of matlab function fftshift
 	dim == 1 means row operation
 	dim == 2 means col operation
@@ -237,13 +237,13 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 	cube ky_cub = vec2cub_yz(ky,Nx,kz_dim);
 
 	cube identity = k(0) * ones<cube>(Ny, Nx, kz_dim);
-	
+
 	cube DKZ = 0.5*sqrt(pow(kx_cub,2) + pow(ky_cub,2) + pow(kz_interp_cub,2)) - identity;
 	cube NDKZ = floor_cube(DKZ/deltkr);
-	
+
 	double NDKZ_min = NDKZ.min();
 	double NDKZ_max = NDKZ.max();
-	
+
 	cx_cube B1(Ny,Nx,NDKZ_max-NDKZ_min+p+1,fill::zeros);
 	B1(0,0,-NDKZ_min,size(Ny,Nx,Nf)) = S_matched;
 
@@ -252,7 +252,7 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 	mat be4sinc(size(NN));
 	cx_mat B2(NN.n_elem,1);
 	cx_cube Stolt(Ny,Nx,kz_dim,fill::zeros);
-	
+
 	for(uword i=0;i<Ny;i++) {
 		for(uword j=0;j<Nx;j++){
 			NN.zeros();
@@ -273,9 +273,9 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 					Stolt(i,j,q).real(0.0);
 					Stolt(i,j,q).imag(0.0);
 				}
-				
+
 			}
-			
+
 		}
 	}
 	return Stolt;
@@ -283,7 +283,7 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 
 int main() {
 	// time start
-	time_t tstart, tend; 
+	time_t tstart, tend;
 	tstart = time(0);
 
 	// load data from .hdf5 files
@@ -291,14 +291,14 @@ int main() {
 	secho_real.load("secho_real.h5",hdf5_binary);
 	cube secho_imag;
 	secho_imag.load("secho_imag.h5",hdf5_binary);
-	
-	tend = time(0); 
+
+	tend = time(0);
     cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// reshape from x-y-z to z-x-y
 	cube S_echo_real = reshape_zxy<cube>(secho_real);
 	cube S_echo_imag = reshape_zxy<cube>(secho_imag);
-	
+
 	// downsampleing to reduce dim
 	uword Nf_downsample_factor = 12;
 	S_echo_real = downsample(S_echo_real,Nf_downsample_factor,3);
@@ -306,7 +306,7 @@ int main() {
 	S_echo_real = S_echo_real(span(29,148),span(59,178),span::all);
 	S_echo_imag = S_echo_imag(span(29,148),span(59,178),span::all);
 
-	tend = time(0); 
+	tend = time(0);
     cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // pre-processing and system delay
@@ -340,13 +340,13 @@ int main() {
 	cx_cube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
 
 	S_echo = S_echo % delay;
-	
+
 	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
 	vec ky = linspace(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
 
 	cx_cube S_kxy(size(S_echo));
-	
-	tend = time(0); 
+
+	tend = time(0);
     cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// fftshift and fft2 for each slice
@@ -357,10 +357,10 @@ int main() {
 		S_kxy.slice(k) = fftshift(S_kxy.slice(k),1);
 		S_kxy.slice(k) = fftshift(S_kxy.slice(k),2);
 	}
-	
+
 	cx_cube S_matched = match_filter_3D(S_kxy,k,kx,ky,R0);
 
-	tend = time(0); 
+	tend = time(0);
     cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // Stolt interrupt
@@ -371,14 +371,14 @@ int main() {
 	uword kz_dim = kz_interp.n_elem;
 	double kx_max = 2*k(0)*sin(Theta_antenna/2);
 	double ky_max = 2*k(0)*sin(Theta_antenna/2);
-	
+
 	cx_cube Stolt = stolt_interrupt(S_matched,k,kx,ky,kz_interp,deltkr,kx_max,ky_max,p);
-	
-	tend = time(0); 
+
+	tend = time(0);
     cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // data manipulation before plot
-	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
+	uword point_number = max(max(Nx,Ny),kz_dim) * 4;
 
 	// pad zeros to increase dimmension of Stolt result
 	cx_cube complex_image_cx(point_number,point_number,point_number,fill::zeros);
@@ -389,7 +389,7 @@ int main() {
 		complex_image_cx.slice(k) = ifft2(complex_image_cx.slice(k));
 	}
 
-	tend = time(0); 
+	tend = time(0);
     cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // third dimension ifft of ifftn
@@ -408,7 +408,7 @@ int main() {
 		}
 	}
 
-	tend = time(0); 
+	tend = time(0);
     cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// ifftshift 3D
@@ -431,18 +431,18 @@ int main() {
 		}
 	}
 
-	tend = time(0); 
+	tend = time(0);
     cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
 	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
-	cube complex_image_cube = abs(complex_image_cx);
-	complex_image_cube = complex_image_cube/complex_image_cube.max();
-	cube complex_image = 20*log10(complex_image_cube);
+	cube complex_image = abs(complex_image_cx);
+	complex_image = complex_image/complex_image.max();
+	// complex_image = 20*log10(complex_image);
 
-	tend = time(0); 
+	tend = time(0);
     cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	for(uword i=0;i<complex_image.n_rows;i++){
@@ -455,7 +455,7 @@ int main() {
 		}
 	}
 
-	tend = time(0); 
+	tend = time(0);
     cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 0;
@@ -468,7 +468,7 @@ int main() {
 	}
 	// cout<<index<<endl;
 
-	tend = time(0); 
+	tend = time(0);
     cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	mat resulting_image(complex_image.n_cols,complex_image.n_slices);
@@ -481,7 +481,7 @@ int main() {
 	resulting_image.save("resulting_image.txt",arma_ascii);
 
 	// time end
-    tend = time(0); 
+    tend = time(0);
     cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
