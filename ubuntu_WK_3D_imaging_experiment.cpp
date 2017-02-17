@@ -438,9 +438,9 @@ int main() {
 	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
 
 	double bg = -30;
-	cube complex_image_cube = abs(complex_image_cx);
-	complex_image_cube = complex_image_cube/complex_image_cube.max();
-	cube complex_image = 20*log10(complex_image_cube);
+	cube complex_image = abs(complex_image_cx);
+	complex_image = complex_image/complex_image.max();
+	// complex_image = 20*log10(complex_image);
 
 	tend = time(0);
     cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
