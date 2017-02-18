@@ -1,19 +1,14 @@
 #define _USE_MATH_DEFINES
-#include <opencv2/imgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-using namespace cv;
 
 #include <armadillo>
 using namespace arma;
 
 #include <iostream>
-#include <math.h> 
+#include <math.h>
 #include <ctime>
 using namespace std;
 
-/* 
+/*
 a cpp implementation of matlab function fftshift
 dim == 1 means row operation
 dim == 2 means col operation
@@ -72,7 +67,6 @@ mat sinc(mat x){
 	}
 	return res;
 }
-
 // hamming window function, return a mat(1,L)
 mat hamming(uword L){
 	mat res(1,L);
@@ -130,60 +124,145 @@ cx_vec vec2cx_vec(vec a, double imaginary_part) {
 	return res;
 }
 
+cx_mat simulated_2Ddechirped_data (cx_vec pos, vec freq, cx_vec tar, cx_vec tar_amp) {
+	int speed_light = 299792458;
+	uword tar_dim = tar.n_elem;
+	uword freq_dim = freq.n_elem;
+	uword pos_dim = pos.n_elem;
+
+	//reshape and repmat
+	cx_cube tar_cube(freq_dim, pos_dim, tar_dim);
+	cx_cube pos_cube(freq_dim, pos_dim, tar_dim);
+	cube freq_cube(freq_dim, pos_dim, tar_dim);
+	cx_cube tar_amp_cube(freq_dim, pos_dim, tar_dim);
+
+	for(uword i = 0; i<freq_dim;++i){
+		for(uword j = 0;j<pos_dim;++j){
+			for(uword k=0;k<tar_dim;++k){
+				tar_cube(i,j,k) = tar(k);
+				pos_cube(i,j,k) = pos(j);
+				freq_cube(i,j,k) = freq(i);
+				tar_amp_cube(i,j,k) = tar_amp(k);
+			}
+		}
+	}
+
+	cube D = abs(tar_cube - pos_cube);
+
+	// wavenumber
+	cube wavenumber = 2 * M_PI/ speed_light * freq_cube ;
+
+	// SISO response
+	cube be4exp_realpart = -2* (wavenumber % D);
+
+	// euler's formula
+	cube afterexp_realpart = cos(be4exp_realpart);
+	cube afterexp_imgpart = sin(be4exp_realpart);
+	cx_cube afterexp(afterexp_realpart,afterexp_imgpart);
+	cx_cube resp = tar_amp_cube % afterexp;
+
+	// sum
+	cx_mat siso_resp(freq_dim, pos_dim);
+	cx_double z_sum;
+	for(uword i = 0; i<freq_dim;++i){
+		for(uword j = 0;j<pos_dim;++j){
+			z_sum.real(0);
+			z_sum.imag(0);
+			for(uword k=0;k<tar_dim;++k){
+				z_sum = z_sum+resp(i,j,k);
+			}
+			siso_resp(i,j) = z_sum;
+		}
+	}
+	return siso_resp;
+}
+
 int main() {
 
 	// time start
-	time_t tstart, tend; 
+	time_t tstart, tend;
 	tstart = time(0);
 
-	// import echo data
-	mat S_echo_real;
-	S_echo_real.load("real2d.txt",arma_ascii);
-	mat S_echo_imag;
-	S_echo_imag.load("imag2d.txt",arma_ascii);
-
-	cx_mat S_echo(S_echo_real,S_echo_imag);
-
-	double system_delay = 2.069;
-
-	// Nx = 129
-	double Nx = S_echo.n_rows;
-
-	// Nf = 201	
-	double Nf = S_echo.n_cols;
-	double R0 = 5 ;
-	double dx = 0.01;
+	double dynamic_range = 30;
 	double c = 299792458;
 	double f_start = 28000000000;
 	double f_stop = 33000000000;
-	
+	double deltf = 50000000;
+	double B = f_stop-f_start;
+
+	// number of frequency
+	double Nf = floor(B/deltf)+1;
+	cout<<"Nf:"<<Nf<<endl;
+	f_stop = f_start + (Nf-1)*deltf;
+	B = f_stop-f_start;
+
+	// generate a vector of Nf freq
 	vec freq = linspace<vec>(f_start,f_stop,Nf);
+	freq.t();
+
 	vec k = 2 * M_PI * freq/c;
+	double deltkr=k(1)-k(0);
+	double deltkz = 2 * deltkr;
+	double f_mid = f_start+B/2;
+	double lam_max = c/f_start;
+	double lam_mid = c/f_mid;
+	double lam_min = c/f_stop;
+	double resolution_y = c/2/B;
+	printf("resolution_y: %e \n", resolution_y);
 
-	// repmat(reshape(freq,[1,Nf]),[Nx,1])
-	mat freq_mat = vec2mat_x(freq,Nx);
-	cout<<freq_mat.n_rows<<" "<<freq_mat.n_cols<<endl;
+	double R0 = 5 ;
+	double array_length = 2;
+	double dx = 0.01;
+	double Nx = round(array_length/dx);
+	if (Nx/2-round(Nx/2)!=0) {
+		Nx = Nx+1;
+	}
+	printf("Nx: %e \n", Nx);
 
-	cx_mat delay(cos(2*M_PI*freq_mat*2*system_delay/c),sin(2*M_PI*freq_mat*2*system_delay/c));
-	cout<<delay.n_rows<<" "<<delay.n_cols<<endl;
-	S_echo = S_echo % delay;
+	vec x_array = linspace<vec> (-Nx * dx/2, (Nx/2 - 1)*dx, Nx);
+	cout<<"x_array length: "<<x_array.n_elem<<endl;
+
+	array_length = x_array(Nx-1) - x_array(0);
+	printf("array_length: %e \n", array_length);
+
+	double Theta_antenna = 2*atan((x_array(Nx-1)-x_array(0))/2/R0);
+	double resolution_x_theory = lam_max/4/sin(Theta_antenna/2);
+	double antenna_space = lam_min/4/sin(Theta_antenna/2);
+	printf("resolution_x_theory: %e \n", resolution_x_theory);
+	printf("antenna_space: %e \n", antenna_space);
+
+	// initialize target.
+	cx_vec tar(5);
+	tar(0) = cx_double(0,0);
+	tar(1) = cx_double(0,0.3);
+	tar(2) = cx_double(0.3,0.3);
+	tar(3) = cx_double(-0.3,0.3);
+	tar(4) = cx_double(0.1,-0.3);
+
+	// fill cube of the same size with ones. size(1,1,tar_dim)
+	vec tar_amp_vec(size(tar),fill::ones);
+	cx_vec tar_amp = vec2cx_vec(tar_amp_vec,0);
+
+	// initialize pos
+	cx_vec X_array = vec2cx_vec(x_array,R0);
+
+	cx_mat S_echo = simulated_2Ddechirped_data(X_array,freq,tar,tar_amp);
+
 	S_echo = fftshift(S_echo,2);
 
-	double deltkr=k(1)-k(0);
-	double deltkz = 2 * deltkr; 
 
-	double Theta_antenna = 45*M_PI/180;
-
+	// cx_mat be4abs = ifft(S_echo);
+	// mat rm = abs(ifft(S_echo));
 	// S_echo 51*200
 	cout<<"S_echo dim "<<S_echo.n_rows<<" * "<<S_echo.n_cols<<endl;
-	S_echo = S_echo.t();
+
 	double FFT_NUM_Multi_x = 2;
 	double FFT_NUM_Multi_z = 2;
 
-	double NLx = 2;
-	double NLz = 2;
+	double NLx = 8;
+	double NLz = 8;
 
-	double FNx = Nx; 
+	double FNx = Nx;
 	double FNf = Nf;
 
 	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/FNx, FNx);
@@ -192,19 +271,18 @@ int main() {
 	// match filter
 	// KX is copied from kx alone y-axis for Nf times
 	// KX:51*200
-	mat KX = vec2mat_x(kx,Nf);	
-	cx_mat matched_filter(size(S_echo));
+	mat KX = vec2mat_x(kx,Nf);
+	cx_mat matched_filter(Nf,FNx);
 
 	// KZ is copied from k alone x-axis for FNx times. Note k is a vec on the y-axis.
 	// KZ:51*200
 	mat Kr = vec2mat_y(k,FNx);
-
-	/*
-	mat KZ = 4 * Kr; 
+	mat KZ = 4 * Kr;
 	KZ = sqrt(pow(KZ,2)-pow(KX,2));
 	cout<<"Kr dim "<<Kr.n_rows<<" * "<<Kr.n_cols<<endl;
-	
-	// Matched_filter = exp(1i*KZ*R0).* (abs(KX) <= 2*(k*ones(1,FNx)));
+	/*
+	Matched_filter = exp(1i*KZ*R0).* (abs(KX) <= 2*(k*ones(1,FNx)));
+	*/
 	for(uword i=0;i<KZ.n_rows;i++){
 		for(uword j=0;j<KZ.n_cols;j++){
 			if(abs(KX(i,j))<=2*KZ(i,j)) {
@@ -217,19 +295,16 @@ int main() {
 			}
 		}
 	}
-	*/
+
 	Kr = 2 * Kr;
 	mat Kz_sq = pow(Kr,2) - pow(KX, 2);
 
-	
 	// S_kx is generated by fft S_echo on each col 51*200
-	S_echo = fftshift(S_echo,2);
 	cx_mat S_kx = fft(S_echo.t()).t();
 	S_kx = fftshift(S_kx,2);
 
 	cout<<"S_kx dim "<<S_kx.n_rows<<" * "<<S_kx.n_cols<<endl;
 
-	
 	for(uword i=0;i<Kz_sq.n_rows;i++){
 		for(uword j=0;j<Kz_sq.n_cols;j++){
 			if(Kz_sq(i,j)<0){
@@ -243,7 +318,6 @@ int main() {
 	mat fmf = R0 * sqrt(Kz_sq);
 	cx_mat after_exp_fmf(cos(fmf),sin(fmf));
 	cx_mat S_matched = S_kx % after_exp_fmf;
-	
 
 	// matlab angle function
 	// mat S_matched_angle = atan(S_matched.imag() / S_matched.real());
@@ -252,7 +326,7 @@ int main() {
 	uword col_num = S_matched.n_cols;
 
 	cout<<"n_rows:"<<line_num<<" n_cols:"<<col_num<<endl;
-	double mid_line= round(line_num/2); 
+	double mid_line= round(line_num/2);
 
 	// stolt interpolation
 	double P = 4;
@@ -261,7 +335,7 @@ int main() {
 	mat DKZ = 0.5*sqrt(pow(KX,2) + pow(Kz_inter,2)) - identity;
 
 	mat NDKY = fix(DKZ/deltkr);
-	cout<<"NDKY dim "<<NDKY.n_rows<<" * "<<NDKY.n_cols<<endl;
+
 	double Nd = NDKY.max();
 	// B1=[S_matched;zeros(Nd+P,FNx)];
 	cx_mat B1(Nf+Nd+P, FNx);
@@ -276,7 +350,6 @@ int main() {
 			}
 		}
 	}
-	
 	// win_interp = hamming(2*P).';
 	mat win_interp = hamming(2*P);
 	mat NN(1,2*P);
@@ -288,7 +361,7 @@ int main() {
 		be4sinc.zeros();
 		part_of_B1.zeros();
 		for(uword j=0;j<FNx;j++){
-			// NN = NDKY(i,j) + (-P+1:P); 
+			// NN = NDKY(i,j) + (-P+1:P);
 			for(uword k=0;k<NN.n_elem;k++){
 				NN(0,k) = NDKY(i,j) + (-1*P)+k+1;
 				be4sinc(0,k) = DKZ(i,j)/deltkr - NN(0,k);
@@ -306,7 +379,6 @@ int main() {
 	double kz_min = 2*k(P-1);
 	double kz_max = sqrt(4 * pow(k(k.n_elem-1),2) - pow(kx_max,2));
 
-	/*
 	// Stolt = Stolt.*((abs(Kx)<=kx_max).*(KZ_interp <= kz_max).*(KZ_interp >= kz_min));
 	for(uword i=0;i<Nf;i++) {
 		for(uword j=0;j<FNx;j++){
@@ -318,7 +390,7 @@ int main() {
 	}
 	cout<<"Stolt_azimuth dim "<<Stolt.n_rows<<" * "<<Stolt.n_cols<<endl;
 	double NWa = 2*floor(kx_max/deltkx);
-	cout<<"NWa: "<<NWa<<endl;
+
 	// Win_f( P : round((kz_max-kz_min)/deltkz),:) = (hamming(round((kz_max-kz_min)/deltkz)-P+1))*ones(1,FNx);
 	mat Win_f(Nf,FNx,fill::zeros);
 	double rnd_kz = round((kz_max - kz_min)/deltkz);
@@ -326,7 +398,6 @@ int main() {
 	cout<<"Win_f dim "<<Win_f.n_rows<<" * "<<Win_f.n_cols<<endl;
 	// Win_azimuth(:,FNx/2 - NWa/2 + 1:FNx/2 + NWa/2) = ones(Nf,1)*(hamming(NWa)).';
 	mat Win_azimuth(Nf,FNx,fill::zeros);
-	cout<<FNx/2 - NWa/2 + 1<<" "<<FNx/2 + NWa/2<<endl;
 	Win_azimuth.cols(FNx/2 - NWa/2 + 1, FNx/2 + NWa/2) = ones(Nf,1) * hamming(NWa);
 	cout<<"Win_azimuth dim "<<Win_azimuth.n_rows<<" * "<<Win_azimuth.n_cols<<endl;
 	// Stolt=Stolt.*Win_azimuth;
@@ -334,29 +405,32 @@ int main() {
 	// Stolt=Stolt.*Win_f;
 	Stolt = Stolt % Win_f;
 
-	*/
 	// image_r_x = ifft(Stolt,FNf*NLz,1); 51*8
 	cx_mat image_r_x = ifft(Stolt,FNf*NLz);
-                                                                      
+
     // image_r_x = ifft(image_r_x,FNx*NLx,2); 200*8
     image_r_x = ifft(image_r_x.t(),FNx*NLx).t();
 
-    // image_r_x=ifftshift(image_r_x,1);                           
-    // image_r_x=ifftshift(image_r_x,2); 
+    // image_r_x=ifftshift(image_r_x,1);
+    // image_r_x=ifftshift(image_r_x,2);
     image_r_x = ifftshift(image_r_x,1);
     image_r_x = ifftshift(image_r_x,2);
-    cout<<"image_r_x dim "<<image_r_x.n_rows<<" * "<<image_r_x.n_cols<<endl;                                                          
+    cout<<"image_r_x dim "<<image_r_x.n_rows<<" * "<<image_r_x.n_cols<<endl;
 
+    cout<<"tar_amp_vec dim "<<tar_amp_vec.n_rows<<" * "<<tar_amp_vec.n_cols<<endl;
+    for(uword i =0;i<tar_amp_vec.n_elem;i++){
+    	cout<<tar_amp_vec(i)<<endl;
+    }
     mat image_r_x_mat = abs(image_r_x);
-    image_r_x_mat = image_r_x_mat / image_r_x_mat.max();
-    cout<<"image_r_x_mat dim "<<image_r_x_mat.n_rows<<" * "<<image_r_x_mat.n_cols<<endl; 
+    image_r_x_mat = tar_amp_vec.max() * image_r_x_mat / image_r_x_mat.max();
+    cout<<"image_r_x_mat dim "<<image_r_x_mat.n_rows<<" * "<<image_r_x_mat.n_cols<<endl;
 
     image_r_x_mat = 20*log10(image_r_x_mat);
-    
+
+    double img_bg = image_r_x_mat.max() - dynamic_range;
+
     // opencv plot
     /*
-    double img_bg = image_r_x_mat.max() - dynamic_range;
-
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
     		if(image_r_x_mat(i,j) < img_bg){
@@ -367,34 +441,29 @@ int main() {
     }
     cout<<"eof"<<endl;
 
-    cv::Mat img0( image_r_x_mat.n_rows, image_r_x_mat.n_cols, CV_8UC1, image_r_x_mat.memptr());
-	cv::Mat image;
-	applyColorMap(img0, image, COLORMAP_HOT);
-	namedWindow( "Display window", WINDOW_NORMAL);
-	imshow("Display window", image);
-	waitKey(0);
-
+    cv::Mat img0( image_r_x_mat.n_rows, image_r_x_mat.n_cols, CV_64F, image_r_x_mat.memptr());
+	imshow("Display window", img0);
+	waitKey(10000);
 	*/
 
-	// make the background dark
-	double dynamic_range = 50; 
-    double img_bg = image_r_x_mat.max() - dynamic_range;
-
+	// export to txt file
     for(uword i=0;i<image_r_x_mat.n_rows;i++){
     	for(uword j=0;j<image_r_x_mat.n_cols;j++){
     		if(image_r_x_mat(i,j) < img_bg){
     			image_r_x_mat(i,j) = img_bg;
     		}
     	}
-    	cout<<i<<endl;
+    	cout<<i<<"/"<<image_r_x_mat.n_rows- 1<<endl;
     }
-    cout<<"eof"<<endl;
+    cout<<"test passed"<<endl;
+
     image_r_x_mat.save("resulting_image.txt",arma_ascii);
 
+
     // time end
-    tend = time(0); 
+    tend = time(0);
     cout << "It took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	return 0;
-	
+
 }
