@@ -381,7 +381,7 @@ int main() {
     cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
     // data manipulation before plot
-	uword point_number = max(max(Nx,Ny),kz_dim) * 4;
+	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
 
 	// pad zeros to increase dimmension of Stolt result
 	cx_fcube complex_image_cx(point_number,point_number,point_number,fill::zeros);
