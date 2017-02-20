@@ -9,7 +9,12 @@ using namespace arma;
 #include <iostream>
 #include <math.h>
 #include <ctime>
+#include <stdlib.h>
 using namespace std;
+
+#define _USE_MATH_DEFINES
+#define MAX_ZERO_PADDING 5
+#define TARGET_IMAGE_BACKGROUND -30
 
 /*
 	downsample a cube to a smaller cube. dim indicates the direction of downsampling.
@@ -284,7 +289,7 @@ cx_fcube stolt_interrupt(cx_fcube S_matched,fvec k,fvec kx,fvec ky,fvec kz_inter
 	return Stolt;
 }
 
-int main() {
+int main(int argc, char** argv) {
 	// time start
 	time_t tstart, tend;
 	tstart = time(0);
@@ -296,7 +301,7 @@ int main() {
 	secho_imag.load("secho_imag.h5",hdf5_binary);
 
 	tend = time(0);
-    cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// reshape from x-y-z to z-x-y
 	fcube S_echo_real = reshape_zxy<fcube>(secho_real);
@@ -310,10 +315,10 @@ int main() {
 	S_echo_imag = S_echo_imag(span(29,148),span(59,178),span::all);
 
 	tend = time(0);
-    cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // pre-processing and system delay
-    cx_fcube S_echo(S_echo_real,S_echo_imag);
+	// pre-processing and system delay
+	cx_fcube S_echo(S_echo_real,S_echo_imag);
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -350,7 +355,7 @@ int main() {
 	cx_fcube S_kxy(size(S_echo));
 
 	tend = time(0);
-    cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// fftshift and fft2 for each slice
 	for(uword k=0;k<S_echo.n_slices;k++){
@@ -364,9 +369,9 @@ int main() {
 	cx_fcube S_matched = match_filter_3D(S_kxy,k,kx,ky,R0);
 
 	tend = time(0);
-    cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // Stolt interrupt
+	// Stolt interrupt
 	uword p = 4;
 	float kz_interp_min = 2*k(0)*cos(Theta_antenna/2);
 	float kz_interp_max = 2*k(k.n_elem-1);
@@ -378,12 +383,24 @@ int main() {
 	cx_fcube Stolt = stolt_interrupt(S_matched,k,kx,ky,kz_interp,deltkr,kx_max,ky_max,p);
 
 	tend = time(0);
-    cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-    // data manipulation before plot
-	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
+	cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// pad zeros to increase dimmension of Stolt result
+	int zeroPadding;
+	if(argc == 1){
+		cout<<"Zero padding is not specified, using default 3."<<endl;
+		zeroPadding = 3;
+	}
+	else if(atoi(argv[1]) > MAX_ZERO_PADDING){
+		cout<<"Please specify smaller number, using default 3."<<endl;
+		zeroPadding = 3;
+	}
+	else{
+		cout<<"Zero padding is "<<argv[1]<<"."<<endl;
+		zeroPadding = atoi(argv[1]);
+	}
+	uword point_number = max(max(Nx,Ny),kz_dim) * zeroPadding;
+
 	cx_fcube complex_image_cx(point_number,point_number,point_number,fill::zeros);
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
 
@@ -425,12 +442,10 @@ int main() {
 	cufftDestroy(plan);
 	free(host_data);
 	cudaFree(device_data);
-
 	cudaDeviceReset();
 
-
 	tend = time(0);
-    cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "ifftn took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
@@ -454,26 +469,18 @@ int main() {
 	}
 	*/
 	tend = time(0);
-    cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	// cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
-	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
-
-	float bg = -30;
-	fcube complex_image(complex_image_cx.n_rows,complex_image_cx.n_cols,complex_image_cx.n_slices);
-	// complex_image = complex_image/complex_image.max();
+	fcube complex_image = abs(complex_image_cx);
+	complex_image = complex_image/complex_image.max();
 	// complex_image = 20*log10(complex_image);
 
 	float elem;
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_cols;j++){
 			for(uword k=0;k<complex_image_cx.n_slices;k++){
-				elem = sqrt(pow(complex_image_cx(i,j,k).real(),2)+pow(complex_image_cx(i,j,k).imag(),2));
-				if(elem < bg){
-					complex_image(i,j,k) = bg;
-				}
-				else{
-					complex_image(i,j,k) = elem;
+				if(complex_image(i,j,k) < TARGET_IMAGE_BACKGROUND){
+					complex_image(i,j,k) = TARGET_IMAGE_BACKGROUND;
 				}
 			}
 		}
@@ -483,17 +490,16 @@ int main() {
   cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 0;
-	double max_cube = bg;
+	double max_cube = TARGET_IMAGE_BACKGROUND;
 	for(uword k=0;k<complex_image.n_slices;k++){
 		if (complex_image.slice(k).max() > max_cube){
 			max_cube = complex_image.slice(k).max();
 			index = k;
 		}
 	}
-	// cout<<index<<endl;
 
 	tend = time(0);
-    cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	fmat resulting_image(complex_image.n_cols,complex_image.n_slices);
 	for(uword j=0;j<complex_image.n_rows;j++){
@@ -505,7 +511,7 @@ int main() {
 	resulting_image.save("resulting_image.txt",arma_ascii);
 
 	// time end
-    tend = time(0);
-    cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
