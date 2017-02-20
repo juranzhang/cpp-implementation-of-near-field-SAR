@@ -1,4 +1,3 @@
-#define _USE_MATH_DEFINES
 #include <hdf5.h>
 #include <armadillo>
 using namespace arma;
@@ -6,7 +5,12 @@ using namespace arma;
 #include <iostream>
 #include <math.h>
 #include <ctime>
+#include <stdlib.h>
 using namespace std;
+
+#define _USE_MATH_DEFINES
+#define MAX_ZERO_PADDING 5
+#define TARGET_IMAGE_BACKGROUND -30
 
 /*
 	downsample a cube to a smaller cube. dim indicates the direction of downsampling.
@@ -281,7 +285,7 @@ cx_cube stolt_interrupt(cx_cube S_matched,vec k,vec kx,vec ky,vec kz_interp,doub
 	return Stolt;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 	// time start
 	time_t tstart, tend;
 	tstart = time(0);
@@ -293,7 +297,7 @@ int main() {
 	secho_imag.load("secho_imag.h5",hdf5_binary);
 
 	tend = time(0);
-    cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// reshape from x-y-z to z-x-y
 	cube S_echo_real = reshape_zxy<cube>(secho_real);
@@ -307,10 +311,10 @@ int main() {
 	S_echo_imag = S_echo_imag(span(29,148),span(59,178),span::all);
 
 	tend = time(0);
-    cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // pre-processing and system delay
-    cx_cube S_echo(S_echo_real,S_echo_imag);
+	// pre-processing and system delay
+	cx_cube S_echo(S_echo_real,S_echo_imag);
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -347,7 +351,7 @@ int main() {
 	cx_cube S_kxy(size(S_echo));
 
 	tend = time(0);
-    cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// fftshift and fft2 for each slice
 	for(uword k=0;k<S_echo.n_slices;k++){
@@ -361,9 +365,9 @@ int main() {
 	cx_cube S_matched = match_filter_3D(S_kxy,k,kx,ky,R0);
 
 	tend = time(0);
-    cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Match filter took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // Stolt interrupt
+	// Stolt interrupt
 	uword p = 4;
 	double kz_interp_min = 2*k(0)*cos(Theta_antenna/2);
 	double kz_interp_max = 2*k(k.n_elem-1);
@@ -375,12 +379,24 @@ int main() {
 	cx_cube Stolt = stolt_interrupt(S_matched,k,kx,ky,kz_interp,deltkr,kx_max,ky_max,p);
 
 	tend = time(0);
-    cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-    // data manipulation before plot
-	uword point_number = max(max(Nx,Ny),kz_dim) * 3;
+	cout << "Stolt interrupt took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// pad zeros to increase dimmension of Stolt result
+	int zeroPadding;
+	if(argc == 1){
+		cout<<"Zero padding is not specified, using default 3."<<endl;
+		zeroPadding = 3;
+	}
+	else if(atoi(argv[1]) > MAX_ZERO_PADDING){
+		cout<<"Please specify smaller number, using default 3."<<endl;
+		zeroPadding = 3;
+	}
+	else{
+		cout<<"Zero padding is "<<argv[1]<<"."<<endl;
+		zeroPadding = atoi(argv[1]);
+	}
+	uword point_number = max(max(Nx,Ny),kz_dim) * zeroPadding;
+
 	cx_cube complex_image_cx(point_number,point_number,point_number,fill::zeros);
 	complex_image_cx(0,0,0,size(Ny,Nx,kz_dim)) = Stolt;
 
@@ -390,9 +406,9 @@ int main() {
 	}
 
 	tend = time(0);
-    cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "ifftn first 2 dims took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // third dimension ifft of ifftn
+	// third dimension ifft of ifftn
 	cx_mat x_slice(complex_image_cx.n_slices,complex_image_cx.n_cols);
 	for(uword i=0;i<complex_image_cx.n_rows;i++){
 		for(uword j=0;j<complex_image_cx.n_slices;j++){
@@ -409,7 +425,7 @@ int main() {
 	}
 
 	tend = time(0);
-    cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "ifftn last dim took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// ifftshift 3D
 	for(uword k=0;k<complex_image_cx.n_slices;k++){
@@ -432,44 +448,40 @@ int main() {
 	}
 
 	tend = time(0);
-    cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "ifftshift 3D took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	// cout<<complex_image_cx(1,0,3)<<endl; //5.98 -43.89
-	// cout<<complex_image_cx(0,1,3)<<endl; //6.15 -43.12
-
-	double bg = -30;
+	// Target image generation
 	cube complex_image = abs(complex_image_cx);
 	complex_image = complex_image/complex_image.max();
-	// complex_image = 20*log10(complex_image);
+	complex_image = 20*log10(complex_image);
 
 	tend = time(0);
-    cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	for(uword i=0;i<complex_image.n_rows;i++){
 		for(uword j=0;j<complex_image.n_cols;j++){
 			for(uword k=0;k<complex_image.n_slices;k++){
-				if(complex_image(i,j,k) < bg){
-					complex_image(i,j,k) = bg;
+				if(complex_image(i,j,k) < TARGET_IMAGE_BACKGROUND){
+					complex_image(i,j,k) = TARGET_IMAGE_BACKGROUND;
 				}
 			}
 		}
 	}
 
 	tend = time(0);
-    cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 0;
-	double max_cube = bg;
+	double max_cube = TARGET_IMAGE_BACKGROUND;
 	for(uword k=0;k<complex_image.n_slices;k++){
 		if (complex_image.slice(k).max() > max_cube){
 			max_cube = complex_image.slice(k).max();
 			index = k;
 		}
 	}
-	// cout<<index<<endl;
 
 	tend = time(0);
-    cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	cout << "Find max index took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	mat resulting_image(complex_image.n_cols,complex_image.n_slices);
 	for(uword j=0;j<complex_image.n_rows;j++){
@@ -480,8 +492,7 @@ int main() {
 
 	resulting_image.save("resulting_image.txt",arma_ascii);
 
-	// time end
-    tend = time(0);
-    cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
