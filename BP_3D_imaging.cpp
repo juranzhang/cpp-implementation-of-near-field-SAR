@@ -4,7 +4,7 @@
 using namespace arma;
 
 #include <iostream>
-#include <math.h> 
+#include <math.h>
 #include <climits>
 #include <ctime>
 #include <stdlib.h>
@@ -22,7 +22,7 @@ cube downsample(cube S_echo,uword downsample_factor, int dim){
 	}
 
 	if(dim == 2) {
-		
+
 	}
 
 	if(dim == 3) {
@@ -162,7 +162,7 @@ mat hamming(uword L){
 	return res;
 }
 
-/* 
+/*
 	a cpp implementation of matlab function fftshift
 	dim == 1 means row operation (along each column vector)
 	dim == 2 means col operation (along each row vector)
@@ -215,7 +215,7 @@ uword nextpow2(uword Nf){
 
 int main() {
 	// time start
-	time_t tstart, tend; 
+	time_t tstart, tend;
 	tstart = time(0);
 
 	// load data from .hdf5 files
@@ -223,14 +223,14 @@ int main() {
 	secho_real.load("secho_real.h5",hdf5_binary);
 	cube secho_imag;
 	secho_imag.load("secho_imag.h5",hdf5_binary);
-	
-	tend = time(0); 
-    cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	tend = time(0);
+	cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// reshape from x-y-z to z-x-y
 	cube S_echo_real = reshape_zxy<cube>(secho_real);
 	cube S_echo_imag = reshape_zxy<cube>(secho_imag);
-	
+
 	// downsampleing to reduce dim
 	uword Nf_downsample_factor = 12;
 	S_echo_real = downsample(S_echo_real,Nf_downsample_factor,3);
@@ -238,11 +238,11 @@ int main() {
 	S_echo_real = S_echo_real(span(29,148),span(59,178),span::all);
 	S_echo_imag = S_echo_imag(span(29,148),span(59,178),span::all);
 
-	tend = time(0); 
-    cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    // pre-processing and system delay
-    cx_cube S_echo(S_echo_real,S_echo_imag);
+	// pre-processing and system delay
+	cx_cube S_echo(S_echo_real,S_echo_imag);
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
@@ -275,72 +275,72 @@ int main() {
 	cx_cube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
 
 	S_echo = S_echo % delay;
-	
+
 	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
 	vec ky = linspace(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
-	
-	tend = time(0); 
-    cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+	tend = time(0);
+	cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// RCMC
-    uword FNf = pow(2,nextpow2(Nf)) * 1;
-    mat R0_xy1(Ny,Nx,fill::zeros);
-    for(uword i=0;i<Ny;i++){
-    	for(uword j=0;j<Nx;j++){
-    		R0_xy1(i,j) = sqrt(pow(y_array(i),2)+pow(x_array(j),2)+pow(R0,2));
-    	}
-    }
-    cube R0_xy1_cub(Ny,Nx,Nf);
-    R0_xy1_cub.each_slice() = R0_xy1;
+	uword FNf = pow(2,nextpow2(Nf)) * 1;
+	mat R0_xy1(Ny,Nx,fill::zeros);
+	for(uword i=0;i<Ny;i++){
+		for(uword j=0;j<Nx;j++){
+			R0_xy1(i,j) = sqrt(pow(y_array(i),2)+pow(x_array(j),2)+pow(R0,2));
+		}
+	}
+  cube R0_xy1_cub(Ny,Nx,Nf);
+  R0_xy1_cub.each_slice() = R0_xy1;
 
-    cube K0(Ny,Nx,Nf);
+  cube K0(Ny,Nx,Nf);
 
-    for(uword l=0;l<Nf;l++){
-    	for(uword i=0;i<Ny;i++){
-    		for(uword j=0;j<Nx;j++){
-    			K0(i,j,l) = k(l)-k(0);
-    		}
-    	}
-    }
-    
-    cube tmp = 2*K0 % R0_xy1_cub;
-    cx_cube tmp_exp(cos(tmp),sin(tmp));
-    S_echo = S_echo % tmp_exp;
-    
-    /*
-    	IFFT along the z-dimension
-    	reshape to do ifft on x-dimension
-    	then reshape back
-    	this might be faster than extracting each slice along z-axis
-    	TODO: verify the above statement
-    */
-    cx_cube S_echo_ifft = reshape_zxy<cx_cube>(S_echo);
-    cx_cube y_bp_ifft(FNf,Ny,Nx);
+  for(uword l=0;l<Nf;l++){
+  	for(uword i=0;i<Ny;i++){
+  		for(uword j=0;j<Nx;j++){
+  			K0(i,j,l) = k(l)-k(0);
+  		}
+  	}
+  }
 
-    for(uword i=0;i<S_echo_ifft.n_slices;i++){
-    	y_bp_ifft.slice(i) = ifft(S_echo_ifft.slice(i),FNf);
-    	y_bp_ifft.slice(i) = fftshift(y_bp_ifft.slice(i),1);
-    }
+  cube tmp = 2*K0 % R0_xy1_cub;
+  cx_cube tmp_exp(cos(tmp),sin(tmp));
+  S_echo = S_echo % tmp_exp;
 
-    cx_cube y_bp = reshape_yzx<cx_cube>(y_bp_ifft);
-	tend = time(0); 
-    cout << "ifft and fftshift took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+  /*
+  	IFFT along the z-dimension
+  	reshape to do ifft on x-dimension
+  	then reshape back
+  	this might be faster than extracting each slice along z-axis
+  	TODO: verify the above statement
+  */
+  cx_cube S_echo_ifft = reshape_zxy<cx_cube>(S_echo);
+  cx_cube y_bp_ifft(FNf,Ny,Nx);
 
-    // range
-    double maxr = c / (2*deltf);
-    double rs = maxr / (FNf -1);
-    double rstart = -maxr/2;
-    double rstop = maxr/2;
+  for(uword i=0;i<S_echo_ifft.n_slices;i++){
+  	y_bp_ifft.slice(i) = ifft(S_echo_ifft.slice(i),FNf);
+  	y_bp_ifft.slice(i) = fftshift(y_bp_ifft.slice(i),1);
+  }
 
-    double x_image_zone = 2 * x_array.max();
-    cout<<x_image_zone<<endl;
-    uword ixn = floor(x_image_zone/dx * 2);
-    if(ixn%2 == 0){
-    	ixn=ixn+1;
-    }
-    uword iyn = ixn;
-    cout<<ixn<<endl;
-    vec x = linspace<vec>(-x_image_zone/2,x_image_zone/2,ixn);
+  cx_cube y_bp = reshape_yzx<cx_cube>(y_bp_ifft);
+	tend = time(0);
+  cout << "ifft and fftshift took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+
+  // range
+  double maxr = c / (2*deltf);
+  double rs = maxr / (FNf -1);
+  double rstart = -maxr/2;
+  double rstop = maxr/2;
+
+  double x_image_zone = 2 * x_array.max();
+  cout<<x_image_zone<<endl;
+  uword ixn = floor(x_image_zone/dx * 2);
+  if(ixn%2 == 0){
+  	ixn=ixn+1;
+  }
+  uword iyn = ixn;
+  cout<<ixn<<endl;
+  vec x = linspace<vec>(-x_image_zone/2,x_image_zone/2,ixn);
 	vec y = linspace<vec>(-x_image_zone/2,x_image_zone/2,iyn);
 	vec z = linspace<vec>(-x_image_zone/2,x_image_zone/2,iyn);
 	cout<<x(0)<<x(5)<<endl;
@@ -374,8 +374,8 @@ int main() {
 		}
 	}
 	cout<<iyn<<" "<<ixn<<endl;
-	tend = time(0); 
-    cout << "range took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "range took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	double dynamic_range = 30;
 	cube bp_image_abs = abs(bp_image);
@@ -383,8 +383,8 @@ int main() {
 	image_r_x = 20*log10(image_r_x);
 	double max_image = image_r_x.max();
 
-	tend = time(0); 
-    cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	for(uword i=0;i<image_r_x.n_rows;i++){
 		for(uword j=0;j<image_r_x.n_cols;j++){
@@ -396,15 +396,15 @@ int main() {
 		}
 	}
 	cout<<size(image_r_x)<<endl;
-	tend = time(0); 
-    cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 141;
 	mat resulting_image = image_r_x.slice(index);
 	resulting_image.save("resulting_image.txt",arma_ascii);
 
 	// time end
-    tend = time(0); 
-    cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
+	tend = time(0);
+	cout << "Data store took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 	return 0;
 }
