@@ -350,17 +350,19 @@ int main() {
 	double Ri,lr,yi_be4_exp;
 	cx_double yi,yi_cx;
 	uword l1,l2;
-
+	// int nthreads;
 	for(uword i=0;i<ixn;i++){
 		cout<<"x_i: "<<i<<endl;
 		for(uword j=0;j<iyn;j++){
 			cout<<"y_i: "<<j<<endl;
 			for(uword l=0;l<iyn;l++){
 				//cout<<"z_i: "<<l<<endl;
+				#pragma omp parallel for collapse(2)
 				for(uword m=0;m<Ny;m++){
 					//cout<<"m: "<<m<<endl;
-					#pragma omp parallel for
 					for(uword n=0;n<Nx;n++){
+						// nthreads = omp_get_num_threads();
+	      		// printf("Number of threads = %d\n", nthreads);
 						//cout<<"n: "<<n<<endl;
 						Ri = sqrt(pow(x(i)-x_array(n),2) + pow(y(j) - y_array(m),2) + pow(z(l)+R0,2) - R0_xy1(m,n));
 						l1 = floor((Ri-rstart)/rs)+1;
@@ -373,6 +375,8 @@ int main() {
 						yi = yi*yi_cx;
 						bp_image(i,j,l) = bp_image(i,j,l) + yi;
 					}
+
+
 				}
 			}
 		}
