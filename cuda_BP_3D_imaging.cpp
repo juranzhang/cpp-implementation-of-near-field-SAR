@@ -1,4 +1,4 @@
-#define _USE_MATH_DEFINES
+#define _USE_fmatH_DEFINES
 #include <hdf5.h>
 #include <armadillo>
 using namespace arma;
@@ -10,14 +10,14 @@ using namespace arma;
 #include <stdlib.h>
 using namespace std;
 
-#include "bp_kernel.cuh"
+#include "bp_kernel.h"
 
 /*
-	downsample a cube to a smaller cube. dim indicates the direction of downsampling.
+	downsample a fcube to a smaller fcube. dim indicates the direction of downsampling.
 	row 1, col 2, slice 3.
 */
-cube downsample(cube S_echo,uword downsample_factor, int dim){
-	cube res;
+fcube downsample(fcube S_echo,uword downsample_factor, int dim){
+	fcube res;
 	uword new_slice;
 	if(dim == 1) {
 
@@ -43,11 +43,11 @@ cube downsample(cube S_echo,uword downsample_factor, int dim){
 }
 
 /*
-	replicate a vector to a cube with dim x,y,z.
-	z equals to the size of the vector.
+	replicate a fvector to a fcube with dim x,y,z.
+	z equals to the size of the fvector.
 */
-cube vec2cub_xy(vec z,uword x,uword y){
-	cube res(x,y,z.n_elem);
+fcube fvec2cub_xy(fvec z,uword x,uword y){
+	fcube res(x,y,z.n_elem);
 	for(uword i=0;i<x;i++){
 		for(uword j=0;j<y;j++){
 			for(uword k=0;k<z.n_elem;k++){
@@ -59,11 +59,11 @@ cube vec2cub_xy(vec z,uword x,uword y){
 }
 
 /*
-	replicate a vector to a cube with dim x,y,z.
-	x equals to the size of the vector.
+	replicate a fvector to a fcube with dim x,y,z.
+	x equals to the size of the fvector.
 */
-cube vec2cub_yz(vec x,uword y,uword z){
-	cube res(x.n_elem,y,z);
+fcube fvec2cub_yz(fvec x,uword y,uword z){
+	fcube res(x.n_elem,y,z);
 	for(uword i=0;i<x.n_elem;i++){
 		for(uword j=0;j<y;j++){
 			for(uword k=0;k<z;k++){
@@ -75,11 +75,11 @@ cube vec2cub_yz(vec x,uword y,uword z){
 }
 
 /*
-	replicate a vector to a cube with dim x,y,z.
-	y equals to the size of the vector.
+	replicate a fvector to a fcube with dim x,y,z.
+	y equals to the size of the fvector.
 */
-cube vec2cub_xz(vec y,uword x,uword z){
-	cube res(x,y.n_elem,z);
+fcube fvec2cub_xz(fvec y,uword x,uword z){
+	fcube res(x,y.n_elem,z);
 	for(uword i=0;i<x;i++){
 		for(uword j=0;j<y.n_elem;j++){
 			for(uword k=0;k<z;k++){
@@ -91,7 +91,7 @@ cube vec2cub_xz(vec y,uword x,uword z){
 }
 
 /*
-	reshape cube from x-y-z to z-x-y
+	reshape fcube from x-y-z to z-x-y
 */
 template <class cubeType>
 cubeType reshape_zxy(cubeType echo){
@@ -107,7 +107,7 @@ cubeType reshape_zxy(cubeType echo){
 }
 
 /*
-	reshape cube from x-y-z to y-z-x
+	reshape fcube from x-y-z to y-z-x
 */
 template <class cubeType>
 cubeType reshape_yzx(cubeType echo){
@@ -122,9 +122,9 @@ cubeType reshape_yzx(cubeType echo){
 	return res;
 }
 
-// a cpp implementation of matlab function floor()
-cube floor_cube(cube x) {
-	cube res(size(x));
+// a cpp implementation of fmatlab function floor()
+fcube floor_fcube(fcube x) {
+	fcube res(size(x));
 	for (uword i =0;i<x.n_rows;i++){
 		for(uword j=0;j<x.n_cols;j++){
 			for(uword k=0;k<x.n_slices;k++){
@@ -135,15 +135,15 @@ cube floor_cube(cube x) {
 	return res;
 }
 
-// convert 1*1 complex matrix to complex double
-cx_double mat2cx_double(cx_mat x){
-	cx_double res(x(0,0).real(),x(0,0).imag());
+// convert 1*1 complex fmatrix to complex float
+cx_float fmat2cx_float(cx_fmat x){
+	cx_float res(x(0,0).real(),x(0,0).imag());
 	return res;
 }
 
 // sinc function, both input and output are 1*N
-mat sinc(mat x){
-	mat res(size(x));
+fmat sinc(fmat x){
+	fmat res(size(x));
 	for(uword i =0;i<x.n_elem;i++){
 		if(x(0,i) == 0){
 			res(0,i) = 1;
@@ -155,9 +155,9 @@ mat sinc(mat x){
 	return res;
 }
 
-// hamming window function, return a mat(1,L)
-mat hamming(uword L){
-	mat res(1,L);
+// hamming window function, return a fmat(1,L)
+fmat hamming(uword L){
+	fmat res(1,L);
 	for(uword i=0;i<L;i++){
 		res(0,i) = 0.53836 - 0.46164*cos(2*M_PI*i/(L-1));
 	}
@@ -165,12 +165,12 @@ mat hamming(uword L){
 }
 
 /*
-	a cpp implementation of matlab function fftshift
-	dim == 1 means row operation (along each column vector)
-	dim == 2 means col operation (along each row vector)
+	a cpp implementation of fmatlab function fftshift
+	dim == 1 means row operation (along each column fvector)
+	dim == 2 means col operation (along each row fvector)
 */
-cx_mat fftshift(cx_mat x,int dim){
-	cx_mat res(size(x));
+cx_fmat fftshift(cx_fmat x,int dim){
+	cx_fmat res(size(x));
 	if(dim==1){
 		uword mid = x.n_rows/2;
 		res.rows(0,mid-1) = x.rows(x.n_rows-mid,x.n_rows-1);
@@ -185,12 +185,12 @@ cx_mat fftshift(cx_mat x,int dim){
 }
 
 /*
-	a cpp implementation of matlab function ifftshift
+	a cpp implementation of fmatlab function ifftshift
 	dim == 1 means row operation
 	dim == 2 means col operation
 */
-cx_mat ifftshift(cx_mat x,int dim){
-	cx_mat res(size(x));
+cx_fmat ifftshift(cx_fmat x,int dim){
+	cx_fmat res(size(x));
 	if(dim==1){
 		uword mid = x.n_rows/2;
 		res.rows(0,x.n_rows-mid-1) = x.rows(mid,x.n_rows-1);
@@ -205,7 +205,7 @@ cx_mat ifftshift(cx_mat x,int dim){
 }
 
 /*
-	cpp implementation of matlab function nextpow2
+	cpp implementation of fmatlab function nextpow2
 */
 uword nextpow2(uword Nf){
 	int i=0;
@@ -221,17 +221,17 @@ int main() {
 	tstart = time(0);
 
 	// load data from .hdf5 files
-	cube secho_real;
+	fcube secho_real;
 	secho_real.load("secho_real.h5",hdf5_binary);
-	cube secho_imag;
+	fcube secho_imag;
 	secho_imag.load("secho_imag.h5",hdf5_binary);
 
 	tend = time(0);
 	cout << "Data load took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// reshape from x-y-z to z-x-y
-	cube S_echo_real = reshape_zxy<cube>(secho_real);
-	cube S_echo_imag = reshape_zxy<cube>(secho_imag);
+	fcube S_echo_real = reshape_zxy<fcube>(secho_real);
+	fcube S_echo_imag = reshape_zxy<fcube>(secho_imag);
 
 	// downsampleing to reduce dim
 	uword Nf_downsample_factor = 12;
@@ -244,58 +244,58 @@ int main() {
 	cout << "Reshaping and downsampling took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// pre-processing and system delay
-	cx_cube S_echo(S_echo_real,S_echo_imag);
+	cx_fcube S_echo(S_echo_real,S_echo_imag);
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
 
-	double c = 299792458;
-	double Theta_antenna = 40*M_PI/180;
-	double f_start = 92000000000;
-	double f_stop = 93993750000;
-	double deltf = Nf_downsample_factor * 6250000;
+	float c = 299792458;
+	float Theta_antenna = 40*M_PI/180;
+	float f_start = 92000000000;
+	float f_stop = 93993750000;
+	float deltf = Nf_downsample_factor * 6250000;
 
-	double B = f_stop - f_start;
+	float B = f_stop - f_start;
 	Nf = floor(B/deltf)+1;
 	f_stop = f_start + (Nf-1)*deltf;
 	B = f_stop - f_start;
-	vec freq = linspace<vec>(f_start,f_stop,Nf);
-	vec k = 2 * M_PI * freq/c;
-	double deltkr=k(1)-k(0);
-	double deltkz = 2 * deltkr;
+	fvec freq = linspace<fvec>(f_start,f_stop,Nf);
+	fvec k = 2 * M_PI * freq/c;
+	float deltkr=k(1)-k(0);
+	float deltkz = 2 * deltkr;
 
-	double R0 = 1;
-	double dx = 0.003;
-	double dy = 0.003;
+	float R0 = 1;
+	float dx = 0.003;
+	float dy = 0.003;
 
-	vec x_array = linspace<vec>(-60,59,Nx) * dx;
-	vec y_array = linspace<vec>(60,-59,Ny) * dy;
+	fvec x_array = linspace<fvec>(-60,59,Nx) * dx;
+	fvec y_array = linspace<fvec>(60,-59,Ny) * dy;
 
-	double system_delay = 0.4;
+	float system_delay = 0.4;
 
-	cube freq_cub = vec2cub_xy(freq,Ny,Nx);
-	cx_cube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
+	fcube freq_cub = fvec2cub_xy(freq,Ny,Nx);
+	cx_fcube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
 
 	S_echo = S_echo % delay;
 
-	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
-	vec ky = linspace(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
+	fvec kx = linspace<fvec>(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
+	fvec ky = linspace<fvec>(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
 
 	tend = time(0);
 	cout << "Pre-processing took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	// RCMC
 	uword FNf = pow(2,nextpow2(Nf)) * 1;
-	mat R0_xy1(Ny,Nx,fill::zeros);
+	fmat R0_xy1(Ny,Nx,fill::zeros);
 	for(uword i=0;i<Ny;i++){
 		for(uword j=0;j<Nx;j++){
 			R0_xy1(i,j) = sqrt(pow(y_array(i),2)+pow(x_array(j),2)+pow(R0,2));
 		}
 	}
-  cube R0_xy1_cub(Ny,Nx,Nf);
+  fcube R0_xy1_cub(Ny,Nx,Nf);
   R0_xy1_cub.each_slice() = R0_xy1;
 
-  cube K0(Ny,Nx,Nf);
+  fcube K0(Ny,Nx,Nf);
 
   for(uword l=0;l<Nf;l++){
   	for(uword i=0;i<Ny;i++){
@@ -305,8 +305,8 @@ int main() {
   	}
   }
 
-  cube tmp = 2*K0 % R0_xy1_cub;
-  cx_cube tmp_exp(cos(tmp),sin(tmp));
+  fcube tmp = 2*K0 % R0_xy1_cub;
+  cx_fcube tmp_exp(cos(tmp),sin(tmp));
   S_echo = S_echo % tmp_exp;
 
   /*
@@ -316,25 +316,25 @@ int main() {
   	this might be faster than extracting each slice along z-axis
   	TODO: verify the above statement
   */
-  cx_cube S_echo_ifft = reshape_zxy<cx_cube>(S_echo);
-  cx_cube y_bp_ifft(FNf,Ny,Nx);
+  cx_fcube S_echo_ifft = reshape_zxy<cx_fcube>(S_echo);
+  cx_fcube y_bp_ifft(FNf,Ny,Nx);
 
   for(uword i=0;i<S_echo_ifft.n_slices;i++){
   	y_bp_ifft.slice(i) = ifft(S_echo_ifft.slice(i),FNf);
   	y_bp_ifft.slice(i) = fftshift(y_bp_ifft.slice(i),1);
   }
 
-  cx_cube y_bp = reshape_yzx<cx_cube>(y_bp_ifft);
+  cx_fcube y_bp = reshape_yzx<cx_fcube>(y_bp_ifft);
 	tend = time(0);
   cout << "ifft and fftshift took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
   // range
-  double maxr = c / (2*deltf);
-  double rs = maxr / (FNf -1);
-  double rstart = -maxr/2;
-  double rstop = maxr/2;
+  float maxr = c / (2*deltf);
+  float rs = maxr / (FNf -1);
+  float rstart = -maxr/2;
+  float rstop = maxr/2;
 
-  double x_image_zone = 2 * x_array.max();
+  float x_image_zone = 2 * x_array.max();
   cout<<x_image_zone<<endl;
   uword ixn = floor(x_image_zone/dx * 2);
   if(ixn%2 == 0){
@@ -342,24 +342,24 @@ int main() {
   }
   uword iyn = ixn;
   cout<<ixn<<endl;
-  vec x = linspace<vec>(-x_image_zone/2,x_image_zone/2,ixn);
-	vec y = linspace<vec>(-x_image_zone/2,x_image_zone/2,iyn);
-	vec z = linspace<vec>(-x_image_zone/2,x_image_zone/2,iyn);
+  fvec x = linspace<fvec>(-x_image_zone/2,x_image_zone/2,ixn);
+	fvec y = linspace<fvec>(-x_image_zone/2,x_image_zone/2,iyn);
+	fvec z = linspace<fvec>(-x_image_zone/2,x_image_zone/2,iyn);
 	cout<<x(0)<<x(5)<<endl;
-	//cx_cube bp_image(iyn,ixn,iyn);
+	//cx_fcube bp_image(iyn,ixn,iyn);
 
 	// call cuda powered bp_algorithm
-	cx_cube bp_image = bp_kernel(y_bp,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
+	cx_fcube bp_image = bp_kernel(y_bp,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
 
 	cout<<iyn<<" "<<ixn<<endl;
 	tend = time(0);
 	cout << "range took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	double dynamic_range = 30;
-	cube bp_image_abs = abs(bp_image);
-	cube image_r_x = bp_image_abs/bp_image_abs.max();
+	float dynamic_range = 30;
+	fcube bp_image_abs = abs(bp_image);
+	fcube image_r_x = bp_image_abs/bp_image_abs.max();
 	image_r_x = 20*log10(image_r_x);
-	double max_image = image_r_x.max();
+	float max_image = image_r_x.max();
 
 	tend = time(0);
 	cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
@@ -378,7 +378,7 @@ int main() {
 	cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
 	uword index = 141;
-	mat resulting_image = image_r_x.slice(index);
+	fmat resulting_image = image_r_x.slice(index);
 	resulting_image.save("resulting_image.txt",arma_ascii);
 
 	// time end
