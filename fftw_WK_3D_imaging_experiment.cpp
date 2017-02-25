@@ -11,6 +11,8 @@ using namespace arma;
 #include <stdlib.h>
 using namespace std;
 
+#include <omp.h>
+
 #define _USE_MATH_DEFINES
 #define MAX_ZERO_PADDING 5
 #define TARGET_IMAGE_BACKGROUND -30
@@ -449,6 +451,7 @@ int main(int argc, char* argv[]) {
 	tend = time(0);
 	cout << "log operation took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
+	#pragma omp parallel for collapse(3)
 	for(uword i=0;i<complex_image.n_rows;i++){
 		for(uword j=0;j<complex_image.n_cols;j++){
 			for(uword k=0;k<complex_image.n_slices;k++){

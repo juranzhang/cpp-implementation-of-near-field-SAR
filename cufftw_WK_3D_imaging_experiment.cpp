@@ -476,8 +476,7 @@ int main(int argc, char** argv) {
 	fcube complex_image = abs(complex_image_cx);
 	complex_image = complex_image/complex_image.max();
 	//complex_image = 20*log10(complex_image);
-
-	float elem;
+	
   #pragma omp parallel for collapse(3)
   for(uword i=0;i<complex_image.n_rows;i++){
     for(uword j=0;j<complex_image.n_cols;j++){
