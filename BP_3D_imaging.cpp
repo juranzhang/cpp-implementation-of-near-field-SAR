@@ -10,6 +10,8 @@ using namespace arma;
 #include <stdlib.h>
 using namespace std;
 
+#include <omp.h>
+
 /*
 	downsample a cube to a smaller cube. dim indicates the direction of downsampling.
 	row 1, col 2, slice 3.
@@ -348,6 +350,7 @@ int main() {
 	double Ri,lr,yi_be4_exp;
 	cx_double yi,yi_cx;
 	uword l1,l2;
+
 	for(uword i=0;i<ixn;i++){
 		cout<<"x_i: "<<i<<endl;
 		for(uword j=0;j<iyn;j++){
@@ -356,6 +359,7 @@ int main() {
 				//cout<<"z_i: "<<l<<endl;
 				for(uword m=0;m<Ny;m++){
 					//cout<<"m: "<<m<<endl;
+					#pragma omp parallel for
 					for(uword n=0;n<Nx;n++){
 						//cout<<"n: "<<n<<endl;
 						Ri = sqrt(pow(x(i)-x_array(n),2) + pow(y(j) - y_array(m),2) + pow(z(l)+R0,2) - R0_xy1(m,n));
