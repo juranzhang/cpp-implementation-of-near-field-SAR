@@ -9,6 +9,6 @@ using namespace arma;
 #include <cuda_runtime.h>
 #include <cuComplex.h>
 
-extern "C" cx_fcube bp_kernel(cx_fcube y_bp,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0);
+void bp_kernel(fcube& bp_real, fcube& bp_imag,fcube y_bp_real,fcube y_bp_imag,int ybpw,int ybph,int ybpd,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0);
 
 #endif

@@ -1,6 +1,6 @@
 #include "bp_kernel.h"
 
-__global__ void bp_imaging_kernel(float Nx,float Ny,float k,float* x_array,float* y_array,float* R0_xy1,float* d_x,float* d_y,float* d_z,cuFloatComplex* d_bp,cuFloatComplex* d_y_bp,int width,int height,int depth,int ybp_w,int ybp_h,int r0w,float rs,float rstart,float rstop,float R0){
+__global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,float Ny,float k,float* x_array,float* y_array,float* R0_xy1,float* d_x,float* d_y,float* d_z,float* d_y_bp_real,float* d_y_bp_imag,int width,int height,int depth,int ybp_w,int ybp_h,int r0w,float rs,float rstart,float rstop,float R0){
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
 	if(index < width*height*depth){
 		//Get ijk indices from each index
@@ -10,74 +10,81 @@ __global__ void bp_imaging_kernel(float Nx,float Ny,float k,float* x_array,float
 		index -= j*width;
 		int i = index/1;
 
-		float Ri,lr,yi_be4_exp;
-		cuFloatComplex yi,yi_cx,l12,tmp;
-		int l1,l2;
+		float Ri,lr,yi_be4_exp,yi_real,yi_imag;
+		int l1,l2,idx1,idx2;
 		for(int m=0;m<Ny;m++){
 			for(int n=0;n<Nx;n++){
 				Ri = sqrt(pow(d_x[i]-x_array[n],2) + pow(d_y[j] - y_array[m],2) + pow(d_z[k]+R0,2) - R0_xy1[m+n*r0w]);
 				l1 = floor((Ri-rstart)/rs)+1;
 				l2 = ceil((Ri-rstart)/rs)+1;
 				lr = (Ri-rstart)/rs+1;
-				l12 = make_cuFloatComplex(lr-l1,0);
-				tmp = cuCmulf(l12,(d_y_bp[m+n*ybp_w+l2*ybp_w*ybp_h]));
-				yi = cuCaddf(d_y_bp[m+n*ybp_w+l1*ybp_w*ybp_h],tmp);
-				yi = cuCsubf(yi,d_y_bp[m+n*ybp_w+l1*ybp_w*ybp_h]);
+				idx1 = m+n*ybp_w+l1*ybp_w*ybp_h;
+				idx2 = m+n*ybp_w+l2*ybp_w*ybp_h;
+				yi_real = d_y_bp_real[idx1]+(lr-l1)*(d_y_bp_real[idx2]-d_y_bp_real[idx1]);
+				yi_imag = d_y_bp_imag[idx1]+(lr-l1)*(d_y_bp_imag[idx2]-d_y_bp_imag[idx1]);
 				yi_be4_exp = k*2*(Ri+R0_xy1[m+n*r0w]);
-				yi_cx = make_cuFloatComplex(cos(yi_be4_exp),sin(yi_be4_exp));
-				yi = cuCmulf(yi,yi_cx);
-				d_bp[i+j*width+k*width*height] = cuCaddf(d_bp[i+j*width+k*width*height],yi);
+				yi_real = yi_real * cos(yi_be4_exp);
+				yi_imag = yi_imag * sin(yi_be4_exp);
+				d_bp_real[i+j*width+k*width*height] = d_bp_real[i+j*width+k*width*height]+yi_real;
+				d_bp_imag[i+j*width+k*width*height] = d_bp_imag[i+j*width+k*width*height]+yi_imag;
 			}
 		}
 	}
 }
 
-extern "C" cx_fcube bp_kernel(cx_fcube y_bp,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0){
-	cx_fcube bp_image(ixn,iyn,iyn);
+void bp_kernel(fcube& bp_real, fcube& bp_imag,fcube y_bp_real,fcube y_bp_imag,int ybpw,int ybph,int ybpd,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0){
+	// fcube bp_real = real(bp_image);
+	// fcube bp_imag = imag(bp_image);
 
 	// allocate memory on device
 	int width = ixn;
 	int height = iyn;
 	int depth = iyn;
-	int numOfPnts = width*height*depth;
-	int size = numOfPnts*sizeof(cuFloatComplex);
+	int bp_numOfPnts = width*height*depth;
+	int ybp_numOfPnts = ybpw*ybph*ybpd;
 	float *d_x;
 	float *d_y;
 	float *d_z;
 	float *d_x_array;
 	float *d_y_array;
 	float *d_R0_xy1;
-	cuFloatComplex *d_y_bp;
-	cuFloatComplex *d_bp;
+	float *d_y_bp_real;
+	float *d_y_bp_imag;
+	float *d_bp_real;
+	float *d_bp_imag;
+	cout<<"after"<<endl;
 	cudaMalloc((void **)&d_x,ixn*sizeof(float));
 	cudaMalloc((void **)&d_y,iyn*sizeof(float));
 	cudaMalloc((void **)&d_z,iyn*sizeof(float));
 	cudaMalloc((void **)&d_x_array,(x_array.n_elem)*sizeof(float));
 	cudaMalloc((void **)&d_y_array,(y_array.n_elem)*sizeof(float));
 	cudaMalloc((void **)&d_R0_xy1,(R0_xy1.n_elem)*sizeof(float));
-	cudaMalloc((void **)&d_y_bp,(y_bp.n_elem)*sizeof(cuFloatComplex));
-	cudaMalloc((void **)&d_bp,size);
-	cout<<"after"<<endl;
-	// allocate memory on host
-	cuFloatComplex *host_data = (cuFloatComplex*)malloc(size);
+	cudaMalloc((void **)&d_y_bp_real,ybp_numOfPnts*sizeof(float));
+	cudaMalloc((void **)&d_y_bp_imag,ybp_numOfPnts*sizeof(float));
+	cudaMalloc((void **)&d_bp_real,bp_numOfPnts*sizeof(float));
+	cudaMalloc((void **)&d_bp_imag,bp_numOfPnts*sizeof(float));
+	cout<<"after33"<<endl;
+
 	float* x_mem = x.memptr();
 	float* y_mem = y.memptr();
 	float* z_mem = z.memptr();
 	float* x_array_mem = x_array.memptr();
 	float* y_array_mem = y_array.memptr();
 	float* R0_xy1_mem = R0_xy1.memptr();
-	cuFloatComplex *y_bp_host = (cuFloatComplex*)malloc((y_bp.n_elem/2)*sizeof(cuFloatComplex));
-	cout<<sizeof(cuFloatComplex)<<endl;
-	cout<<y_bp.n_elem<<endl;
-	size_t sybp = malloc_usable_size (y_bp_host);
-	cout<<sybp<<endl;
-	cout<<sizeof(cx_float)<<endl;
-	for(int i = 0;i<(y_bp.n_elem/2);i++){
-		cout<<i<<endl;
-		y_bp_host[i]=make_cuFloatComplex(y_bp(i).real(),y_bp(i).imag());
-	}
-
-
+	cout<<"after33"<<endl;
+	float* ybp_real_mem = y_bp_real.memptr();
+	float* ybp_imag_mem = y_bp_imag.memptr();
+	float* bp_real_mem = bp_real.memptr();
+	float* bp_imag_mem = bp_imag.memptr();
+	// cout<<sizeof(cuFloatComplex)<<endl;
+	// cout<<y_bp.n_elem<<endl;
+	// size_t sybp = malloc_usable_size (y_bp_host);
+	// cout<<sybp<<endl;
+	// cout<<sizeof(cx_float)<<endl;
+	// for(int i = 0;i<(y_bp.n_elem);i++){
+	// 	cout<<i<<endl;
+	// 	y_bp_host[i]=make_cuFloatComplex(y_bp(i).real(),y_bp(i).imag());
+	// }
 	cout<<"after"<<endl;
 	// copy data from host to device
 	cudaMemcpy(d_x,x_mem,ixn*sizeof(float),cudaMemcpyHostToDevice);
@@ -86,22 +93,31 @@ extern "C" cx_fcube bp_kernel(cx_fcube y_bp,fvec x,fvec y,fvec z,fvec x_array,fv
 	cudaMemcpy(d_x_array,x_array_mem,(x_array.n_elem)*sizeof(float),cudaMemcpyHostToDevice);
 	cudaMemcpy(d_y_array,y_array_mem,(y_array.n_elem)*sizeof(float),cudaMemcpyHostToDevice);
 	cudaMemcpy(d_R0_xy1,R0_xy1_mem,(R0_xy1.n_elem)*sizeof(float),cudaMemcpyHostToDevice);
-	cudaMemcpy(d_y_bp,y_bp_host,(y_bp.n_elem)*sizeof(cuFloatComplex),cudaMemcpyHostToDevice);
-	cudaMemcpy(d_bp,host_data,size,cudaMemcpyHostToDevice);
-
+	cudaMemcpy(d_y_bp_real,ybp_real_mem,ybp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
+	cudaMemcpy(d_y_bp_imag,ybp_imag_mem,ybp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
+	cudaMemcpy(d_bp_real,bp_real_mem,bp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
+	cudaMemcpy(d_bp_imag,bp_imag_mem,bp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
+	cout<<"after44"<<endl;
 	dim3 block_size(32,32);
 	dim3 grid_size(235/32+1,235/32+1);
 
 	// call cuda function
-	bp_imaging_kernel<<<grid_size,block_size>>>(Nx,Ny,k,d_x_array,d_y_array,d_R0_xy1,d_x,d_y,d_z,d_bp,d_y_bp,width,height,depth,y_bp.n_rows,y_bp.n_cols,R0_xy1.n_rows,rs,rstart,rstop,R0);
+	bp_imaging_kernel<<<grid_size,block_size>>>(d_bp_real,d_bp_imag,Nx,Ny,k,d_x_array,d_y_array,d_R0_xy1,d_x,d_y,d_z,d_y_bp_real,d_y_bp_imag,width,height,depth,ybpw,ybph,R0_xy1.n_rows,rs,rstart,rstop,R0);
+	cout<<"after44"<<endl;
+	// allocate memory on host
+	float *bp_real_host = (float*)malloc(bp_numOfPnts*sizeof(float));
+	float *bp_imag_host = (float*)malloc(bp_numOfPnts*sizeof(float));
 
 	// copy result back to host
-	cudaMemcpy(host_data,d_bp,size,cudaMemcpyDeviceToHost);
+	cudaMemcpy(bp_real_host,d_bp_real,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
+	cudaMemcpy(bp_imag_host,d_bp_imag,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
 
-	for(int i = 0;i<numOfPnts;i++){
-		bp_image(i).real() = cuCrealf(host_data[i]);
-		bp_image(i).imag() = cuCimagf(host_data[i]);
-	}
+	for(int i=0;i<bp_numOfPnts;i++){
+  	bp_real(i) = bp_real_host[0];
+		bp_imag(i) = bp_imag_host[0];
+  }
 
-	return bp_image;
+	free(bp_real_host);
+	free(bp_imag_host);
+
 }

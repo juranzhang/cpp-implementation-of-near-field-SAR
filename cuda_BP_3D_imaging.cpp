@@ -346,11 +346,19 @@ int main() {
 	fvec y = linspace<fvec>(-x_image_zone/2,x_image_zone/2,iyn);
 	fvec z = linspace<fvec>(-x_image_zone/2,x_image_zone/2,iyn);
 	cout<<x(0)<<x(5)<<endl;
-	//cx_fcube bp_image(iyn,ixn,iyn);
+	fcube bp_real(iyn,ixn,iyn,fill::zeros);
+	fcube bp_imag(iyn,ixn,iyn,fill::zeros);
 
 	// call cuda powered bp_algorithm
-	cx_fcube bp_image = bp_kernel(y_bp,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
-
+	fcube y_bp_real = real(y_bp);
+	fcube y_bp_imag = imag(y_bp);
+	uword ybp_w = y_bp.n_rows;
+	uword ybp_h = y_bp.n_cols;
+	uword ybp_d = y_bp.n_slices;
+	cout<<"after"<<endl;
+	bp_kernel(bp_real,bp_imag,y_bp_real,y_bp_imag,ybp_w,ybp_h,ybp_d,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
+	cx_fcube bp_image(bp_real,bp_imag);
+	
 	cout<<iyn<<" "<<ixn<<endl;
 	tend = time(0);
 	cout << "range took "<< difftime(tend, tstart) <<" second(s)."<< endl;
