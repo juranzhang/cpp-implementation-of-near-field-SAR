@@ -12,6 +12,8 @@ using namespace arma;
 #include <stdlib.h>
 using namespace std;
 
+#include <omp.h>
+
 #define _USE_MATH_DEFINES
 #define MAX_ZERO_PADDING 5
 #define TARGET_IMAGE_BACKGROUND -30
@@ -473,18 +475,19 @@ int main(int argc, char** argv) {
 
 	fcube complex_image = abs(complex_image_cx);
 	complex_image = complex_image/complex_image.max();
-	// complex_image = 20*log10(complex_image);
+	//complex_image = 20*log10(complex_image);
 
 	float elem;
-	for(uword i=0;i<complex_image_cx.n_rows;i++){
-		for(uword j=0;j<complex_image_cx.n_cols;j++){
-			for(uword k=0;k<complex_image_cx.n_slices;k++){
-				if(complex_image(i,j,k) < TARGET_IMAGE_BACKGROUND){
-					complex_image(i,j,k) = TARGET_IMAGE_BACKGROUND;
-				}
-			}
-		}
-	}
+  #pragma omp parallel for collapse(3)
+  for(uword i=0;i<complex_image.n_rows;i++){
+    for(uword j=0;j<complex_image.n_cols;j++){
+      for(uword k=0;k<complex_image.n_slices;k++){
+        if(complex_image(i,j,k) < TARGET_IMAGE_BACKGROUND){
+          complex_image(i,j,k) = TARGET_IMAGE_BACKGROUND;
+        }
+      }
+    }
+  }
 
 	tend = time(0);
   cout << "Set background took "<< difftime(tend, tstart) <<" second(s)."<< endl;
