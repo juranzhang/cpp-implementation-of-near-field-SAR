@@ -10,7 +10,7 @@ using namespace arma;
 #include <stdlib.h>
 using namespace std;
 
-#include <omp.h>
+//#include <omp.h>
 
 /*
 	downsample a cube to a smaller cube. dim indicates the direction of downsampling.
@@ -359,23 +359,29 @@ int main() {
 			cout<<"y_i: "<<j<<endl;
 			for(uword l=0;l<iyn;l++){
 				//cout<<"z_i: "<<l<<endl;
-				#pragma omp parallel for collapse(2)
+				//#pragma omp parallel for collapse(2)
 				for(uword m=0;m<Ny;m++){
 					//cout<<"m: "<<m<<endl;
 					for(uword n=0;n<Nx;n++){
 						// nthreads = omp_get_num_threads();
 	      		// printf("Number of threads = %d\n", nthreads);
 						//cout<<"n: "<<n<<endl;
-						Ri = sqrt(pow(x(i)-x_array(n),2) + pow(y(j) - y_array(m),2) + pow(z(l)+R0,2) - R0_xy1(m,n));
-						l1 = floor((Ri-rstart)/rs)+1;
-						l2 = ceil((Ri-rstart)/rs)+1;
-						lr = (Ri-rstart)/rs+1;
+						Ri = sqrt(pow(x(i)-x_array(n),2) + pow(y(j) - y_array(m),2) + pow(z(l)+R0,2)) - R0_xy1(m,n);
+						l1 = floor((Ri-rstart)/rs);
+						l2 = ceil((Ri-rstart)/rs);
+						lr = (Ri-rstart)/rs;
+						//cout<<l1<<l2<<lr<<endl;
 						yi = y_bp(m,n,l1) + (lr-l1)*(y_bp(m,n,l2) - y_bp(m,n,l1));
+						// cout<<y_bp(m,n,l2)<<y_bp(m,n,l1)<<endl;
+						// cout<<lr-l1<<endl;
+						// cout<<yi<<endl;
 						yi_be4_exp = k(0)*2*(Ri+R0_xy1(m,n));
 						yi_cx.real(cos(yi_be4_exp));
 						yi_cx.imag(sin(yi_be4_exp));
 						yi = yi*yi_cx;
 						bp_image(i,j,l) = bp_image(i,j,l) + yi;
+						// cout<<yi<<endl;
+						// cout<<bp_image(0)<<bp_image(400)<<endl;
 					}
 
 
