@@ -5,17 +5,14 @@ A cpp implementation of near-field SAR. The original code is written in MATLAB.
 
 Using armadillo to do matrix/cube transformation and opencv to plot. HDF5 is used to store data.
 
-Armadillo can be downloaded here http://arma.sourceforge.net/download.html.
+Armadillo can be downloaded here http://arma.sourceforge.net/download.html. Although personally I strongly recommend use homebrew to install everything. Checkout this: http://braumeister.org/repos/Homebrew/homebrew-science/formula/armadillo. The page also includes other prerequisite of armadillo. 
 
-On Mac:
+On both Mac and Linux:
 
-Install BLAS and LAPACK before installing Armadillo. 
+To start with, install OpenBlas and LAPACK before installing Armadillo. 
+`brew install openblas`. Other libraries can be installed in the similiar way.
 
 Deprecated: OpenCV can be downloaded from https://github.com/opencv/opencv. This is the most recent update. An installation guide of OpenCV on Mac can be found here: http://stackoverflow.com/questions/19671827/opencv-installation-on-mac-os-x. OpenCV is no longer used. 
-
-On linux:
-
-Install OpenBLAS and LAPACK before installing Armadillo.
 
 
 ## The files
@@ -66,7 +63,7 @@ This is the MEX file that is called in Matlab to improve speed of the stolt_inte
 
 2. In order to enable hdf5 file load/save functionalities: On Mac or Linux, go to your armadillo folder, inside /include/armadillo_bits/config.hpp, uncomment the line `#define ARMA_USE_HDF5` as specified in http://arma.sourceforge.net/docs.html#config_hpp.
 
-3. You'll also need to install hdf5 library by `brew install homebrew/science/hdf5` (on Mac).
+3. You'll also need to install hdf5 library by `brew install homebrew/science/hdf5`.
 
 4. Follow the instructions above to build and run.
 
