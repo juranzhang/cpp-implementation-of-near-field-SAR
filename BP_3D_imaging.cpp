@@ -248,7 +248,8 @@ int main() {
 	uword Nx = S_echo.n_cols;
 	uword Ny = S_echo.n_rows;
 	uword Nf = S_echo.n_slices;
-
+	cout<<S_echo(0)<<S_echo(130)<<endl;
+	cout<<Nx<<Ny<<Nf<<endl;
 	double c = 299792458;
 	double Theta_antenna = 40*M_PI/180;
 	double f_start = 92000000000;
@@ -277,7 +278,7 @@ int main() {
 	cx_cube delay(cos(2*M_PI*freq_cub*2*system_delay/c),sin(2*M_PI*freq_cub*2*system_delay/c));
 
 	S_echo = S_echo % delay;
-
+	cout<<S_echo(0)<<S_echo(130)<<endl;
 	vec kx = linspace(-M_PI/dx, M_PI/dx - 2*M_PI/dx/Nx, Nx);
 	vec ky = linspace(-M_PI/dy, M_PI/dy - 2*M_PI/dy/Ny, Ny);
 
@@ -308,7 +309,7 @@ int main() {
   cube tmp = 2*K0 % R0_xy1_cub;
   cx_cube tmp_exp(cos(tmp),sin(tmp));
   S_echo = S_echo % tmp_exp;
-
+  cout<<S_echo(0)<<S_echo(130)<<endl;
   /*
   	IFFT along the z-dimension
   	reshape to do ifft on x-dimension
@@ -320,11 +321,12 @@ int main() {
   cx_cube y_bp_ifft(FNf,Ny,Nx);
 
   for(uword i=0;i<S_echo_ifft.n_slices;i++){
-  	y_bp_ifft.slice(i) = ifft(S_echo_ifft.slice(i),FNf);
+  	y_bp_ifft.slice(i) = ifft(S_echo_ifft.slice(i),FNf)*FNf/Nf;
   	y_bp_ifft.slice(i) = fftshift(y_bp_ifft.slice(i),1);
   }
 
   cx_cube y_bp = reshape_yzx<cx_cube>(y_bp_ifft);
+  cout<<y_bp(0)<<y_bp(130)<<endl;
 	tend = time(0);
   cout << "ifft and fftshift took "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
