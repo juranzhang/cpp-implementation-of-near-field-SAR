@@ -24,9 +24,7 @@ wk_cufftw: cufftw_WK_3D_imaging_experiment.cpp
 bp: BP_3D_imaging.cpp
 	g++ BP_3D_imaging.cpp -o $@ -O2 -fopenmp -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lopenblas -llapack -larmadillo -lhdf5 $(HDF5_INC_PATH) $(HDF5_LIB_PATH)
 
-bp_cuda: program
-
-program: bp_kernel.o
+bp_cuda: bp_kernel.o
 	g++ cuda_BP_3D_imaging.cpp bp_kernel.o -o $@ -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -DARMA_USE_HDF5 -lopenblas -llapack -larmadillo -lhdf5 -lm -lcuda -lcudart $(CUDA_INC_PATH) $(CUDA_LIB_PATH) $(HDF5_INC_PATH) $(HDF5_LIB_PATH)
 
 bp_kernel.o:
@@ -39,4 +37,4 @@ test2d: test2d.cpp
 	g++ test2d.cpp -o $@ -O2 -DARMA_DONT_USE_WRAPPER -DARMA_USE_BLAS -DARMA_USE_LAPACK -lopenblas -llapack -larmadillo
 
 clean:
-	rm -rf *.o wk wk_fftw wk_cufftw bp test test2d program
+	rm -rf *.o wk wk_fftw wk_cufftw bp test test2d bp_cuda

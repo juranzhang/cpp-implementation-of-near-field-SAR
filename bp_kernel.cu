@@ -32,7 +32,7 @@ __global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,flo
 	}
 }
 
-void bp_kernel(fcube& bp_real, fcube& bp_imag,fcube y_bp_real,fcube y_bp_imag,int ybpw,int ybph,int ybpd,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0){
+void bp_kernel(float*& bp_real_host,float*& bp_imag_host,fcube& bp_real, fcube& bp_imag,fcube y_bp_real,fcube y_bp_imag,int ybpw,int ybph,int ybpd,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0){
 	// fcube bp_real = real(bp_image);
 	// fcube bp_imag = imag(bp_image);
 
@@ -104,20 +104,10 @@ void bp_kernel(fcube& bp_real, fcube& bp_imag,fcube y_bp_real,fcube y_bp_imag,in
 	// call cuda function
 	bp_imaging_kernel<<<grid_size,block_size>>>(d_bp_real,d_bp_imag,Nx,Ny,k,d_x_array,d_y_array,d_R0_xy1,d_x,d_y,d_z,d_y_bp_real,d_y_bp_imag,width,height,depth,ybpw,ybph,R0_xy1.n_rows,rs,rstart,rstop,R0);
 	cout<<"after44"<<endl;
-	// allocate memory on host
-	float *bp_real_host = (float*)malloc(bp_numOfPnts*sizeof(float));
-	float *bp_imag_host = (float*)malloc(bp_numOfPnts*sizeof(float));
 
+	cout<<"after55"<<endl;
 	// copy result back to host
 	cudaMemcpy(bp_real_host,d_bp_real,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
 	cudaMemcpy(bp_imag_host,d_bp_imag,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
-
-	for(int i=0;i<bp_numOfPnts;i++){
-  	bp_real(i) = bp_real_host[0];
-		bp_imag(i) = bp_imag_host[0];
-  }
-
-	free(bp_real_host);
-	free(bp_imag_host);
 
 }
