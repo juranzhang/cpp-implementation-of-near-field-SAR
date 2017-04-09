@@ -313,8 +313,6 @@ int main() {
   	IFFT along the z-dimension
   	reshape to do ifft on x-dimension
   	then reshape back
-  	this might be faster than extracting each slice along z-axis
-  	TODO: verify the above statement
   */
   cx_fcube S_echo_ifft = reshape_zxy<cx_fcube>(S_echo);
   cx_fcube y_bp_ifft(FNf,Ny,Nx);
@@ -327,13 +325,7 @@ int main() {
   cx_fcube y_bp = reshape_yzx<cx_fcube>(y_bp_ifft);
 	tend = time(0);
   cout << "ifft and fftshift took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-	cout<<y_bp(0,0,0)<<y_bp(0,0,5)<<endl;
-	cout<<y_bp(0,0,0)<<y_bp(0,0,5)<<endl;
-	cout<<y_bp(0,0,0)<<y_bp(0,5,0)<<endl;
-	cout<<y_bp(0,0,0)<<y_bp(0,5,0)<<endl;
-	cout<<y_bp(0,0,0)<<y_bp(5,0,0)<<endl;
-	cout<<y_bp(0,0,0)<<y_bp(5,0,0)<<endl;
-	cout<<size(y_bp)<<endl;
+
   // range
   float maxr = c / (2*deltf);
   float rs = maxr / (FNf -1);
@@ -362,14 +354,17 @@ int main() {
 	uword ybp_h = y_bp.n_cols;
 	uword ybp_d = y_bp.n_slices;
 	cout<<"after"<<endl;
+	cout<<y_bp_real(0)<<endl;
 	int bp_numOfPnts = ixn*iyn*iyn;
 	float *bp_real_host = (float*)malloc(bp_numOfPnts*sizeof(float));
 	float *bp_imag_host = (float*)malloc(bp_numOfPnts*sizeof(float));
 
-	bp_kernel(bp_real_host,bp_imag_host,bp_real,bp_imag,y_bp_real,y_bp_imag,ybp_w,ybp_h,ybp_d,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
+	bp_kernel(bp_real_host,bp_imag_host,y_bp_real.memptr(),y_bp_imag.memptr(),ybp_w,ybp_h,ybp_d,x,y,z,x_array,y_array,R0_xy1,Nx,Ny,ixn,iyn,k(0),rs,rstart,rstop,R0);
+
 	for(int i=0;i<bp_numOfPnts;i++){
 		bp_real(i) = bp_real_host[i];
 		bp_imag(i) = bp_imag_host[i];
+		//cout<<bp_real(i)<<endl;
 	}
 	cx_fcube bp_image(bp_real,bp_imag);
 	free(bp_real_host);
@@ -378,7 +373,6 @@ int main() {
 	cout<<iyn<<" "<<ixn<<endl;
 	tend = time(0);
 	cout << "range took "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
 	float dynamic_range = 30;
 	fcube bp_image_abs = abs(bp_image);
 	fcube image_r_x = bp_image_abs/bp_image_abs.max();
