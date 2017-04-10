@@ -4,18 +4,11 @@ __global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,flo
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 	int k = blockIdx.z * blockDim.z + threadIdx.z;
-	// if(index < width*height*depth){
-	// 	//Get ijk indices from each index
-	// 	int k = index/(width*height);
-	// 	index -= k*width*height;
-	// 	int j = index/width;
-	// 	index -= j*width;
-	// 	int i = index/1;
 
 	float Ri,lr,yi_be4_exp,yi_real,yi_imag;
 	int l1,l2,idx1,idx2;
-	printf("%d %d %d %d %d %d\n", blockIdx.x,threadIdx.x,blockIdx.y,threadIdx.y,blockIdx.z,threadIdx.z);
-
+	//printf("%d %d %d %d %d %d\n", blockIdx.x,threadIdx.x,blockIdx.y,threadIdx.y,blockIdx.z,threadIdx.z);
+	//printf("%d %d %d\n", i,j,k);
 	for(int m=0;m<Ny;m++){
 		for(int n=0;n<Nx;n++){
 			Ri = sqrt(pow(d_x[i]-x_array[n],2) + pow(d_y[j] - y_array[m],2) + pow(d_z[k]+R0,2)) - R0_xy1[m+n*r0w];
@@ -33,14 +26,10 @@ __global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,flo
 			d_bp_imag[i+j*width+k*width*height] = d_bp_imag[i+j*width+k*width*height]+yi_imag;
 		}
 	}
-	printf("%f %f %f\n", d_bp_real[i+j*width+k*width*height],yi_real,x_array[0]);
-	//}
+	printf("%f %f %f\n", d_bp_real[0],d_bp_real[5],yi_real);
 }
 
 void bp_kernel(float*& bp_real_host,float*& bp_imag_host,float* y_bp_real,float* y_bp_imag,int ybpw,int ybph,int ybpd,fvec x,fvec y,fvec z,fvec x_array,fvec y_array,fmat R0_xy1,int Nx,int Ny,int ixn,int iyn,float k,float rs,float rstart,float rstop,float R0){
-	// fcube bp_real = real(bp_image);
-	// fcube bp_imag = imag(bp_image);
-
 	// allocate memory on device
 	int width = ixn;
 	int height = iyn;
@@ -57,7 +46,7 @@ void bp_kernel(float*& bp_real_host,float*& bp_imag_host,float* y_bp_real,float*
 	float *d_y_bp_imag;
 	float *d_bp_real;
 	float *d_bp_imag;
-	cout<<"after"<<endl;
+
 	cout<<y_bp_real[0]<<y_bp_real[5]<<endl;
 	cout<<R0_xy1(0)<<endl;
 	cudaMalloc((void **)&d_x,ixn*sizeof(float));
@@ -72,7 +61,6 @@ void bp_kernel(float*& bp_real_host,float*& bp_imag_host,float* y_bp_real,float*
 	cudaMemset(d_bp_real,0,bp_numOfPnts*sizeof(float));
 	cudaMalloc((void **)&d_bp_imag,bp_numOfPnts*sizeof(float));
 	cudaMemset(d_bp_imag,0,bp_numOfPnts*sizeof(float));
-	cout<<"after33"<<endl;
 
 	float* x_mem = x.memptr();
 	float* y_mem = y.memptr();
@@ -80,18 +68,7 @@ void bp_kernel(float*& bp_real_host,float*& bp_imag_host,float* y_bp_real,float*
 	float* x_array_mem = x_array.memptr();
 	float* y_array_mem = y_array.memptr();
 	float* R0_xy1_mem = R0_xy1.memptr();
-	cout<<"after33"<<endl;
 
-	// cout<<sizeof(cuFloatComplex)<<endl;
-	// cout<<y_bp.n_elem<<endl;
-	// size_t sybp = malloc_usable_size (y_bp_host);
-	// cout<<sybp<<endl;
-	// cout<<sizeof(cx_float)<<endl;
-	// for(int i = 0;i<(y_bp.n_elem);i++){
-	// 	cout<<i<<endl;
-	// 	y_bp_host[i]=make_cuFloatComplex(y_bp(i).real(),y_bp(i).imag());
-	// }
-	cout<<"after"<<endl;
 	// copy data from host to device
 	cudaMemcpy(d_x,x_mem,ixn*sizeof(float),cudaMemcpyHostToDevice);
 	cudaMemcpy(d_y,y_mem,iyn*sizeof(float),cudaMemcpyHostToDevice);
@@ -102,18 +79,25 @@ void bp_kernel(float*& bp_real_host,float*& bp_imag_host,float* y_bp_real,float*
 	cudaMemcpy(d_y_bp_real,y_bp_real,ybp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
 	cudaMemcpy(d_y_bp_imag,y_bp_imag,ybp_numOfPnts*sizeof(float),cudaMemcpyHostToDevice);
 
-	cout<<"after44"<<endl;
-
 	dim3 block_size(8,8,8);
 	dim3 grid_size(237/8+1,237/8+1,237/8+1);
 
 	// call cuda function
 	bp_imaging_kernel<<<grid_size,block_size>>>(d_bp_real,d_bp_imag,Nx,Ny,k,d_x_array,d_y_array,d_R0_xy1,d_x,d_y,d_z,d_y_bp_real,d_y_bp_imag,width,height,depth,ybpw,ybph,R0_xy1.n_rows,rs,rstart,rstop,R0);
-	cout<<"after44"<<endl;
 
-	cout<<"after55"<<endl;
 	// copy result back to host
+	//cout<<d_bp_real[0]<<" "<<d_bp_real[5]<<endl;
 	cudaMemcpy(bp_real_host,d_bp_real,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
 	cudaMemcpy(bp_imag_host,d_bp_imag,bp_numOfPnts*sizeof(float),cudaMemcpyDeviceToHost);
-
+	cout<<bp_real_host[0]<<" "<<bp_real_host[5]<<endl;
+	cudaFree(d_bp_real);
+	cudaFree(d_bp_imag);
+	cudaFree(d_x);
+	cudaFree(d_y);
+	cudaFree(d_z);
+	cudaFree(d_x_array);
+	cudaFree(d_y_array);
+	cudaFree(d_R0_xy1);
+	cudaFree(d_y_bp_real);
+	cudaFree(d_y_bp_imag);
 }

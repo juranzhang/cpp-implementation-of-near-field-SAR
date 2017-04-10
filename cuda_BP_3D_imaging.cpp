@@ -364,8 +364,8 @@ int main() {
 	for(int i=0;i<bp_numOfPnts;i++){
 		bp_real(i) = bp_real_host[i];
 		bp_imag(i) = bp_imag_host[i];
-		//cout<<bp_real(i)<<endl;
 	}
+	cout<<bp_real(0)<<" "<<bp_real(5)<<endl;
 	cx_fcube bp_image(bp_real,bp_imag);
 	free(bp_real_host);
 	free(bp_imag_host);
