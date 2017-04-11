@@ -5,6 +5,10 @@ __global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,flo
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 	int k = blockIdx.z * blockDim.z + threadIdx.z;
 
+	// unique block and thread id
+	int blockId = blockIdx.x+blockIdx.y* gridDim.x+ gridDim.x* gridDim.y* blockIdx.z;
+	int threadId = blockId * (blockDim.x* blockDim.y* blockDim.z) + (threadIdx.z* (blockDim.x* blockDim.y))+ (threadIdx.y* blockDim.x)+ threadIdx.x;
+
 	float Ri,lr,yi_be4_exp,yi_real,yi_imag;
 	int l1,l2,idx1,idx2;
 	//printf("%d %d %d %d %d %d\n", blockIdx.x,threadIdx.x,blockIdx.y,threadIdx.y,blockIdx.z,threadIdx.z);
@@ -22,8 +26,10 @@ __global__ void bp_imaging_kernel(float* d_bp_real,float* d_bp_imag,float Nx,flo
 			yi_be4_exp = k0*2*(Ri+R0_xy1[m+n*r0w]);
 			yi_real = yi_real * cos(yi_be4_exp);
 			yi_imag = yi_imag * sin(yi_be4_exp);
-			d_bp_real[i+j*width+k*width*height] = d_bp_real[i+j*width+k*width*height]+yi_real;
-			d_bp_imag[i+j*width+k*width*height] = d_bp_imag[i+j*width+k*width*height]+yi_imag;
+			//d_bp_real[i+j*width+k*width*height] = d_bp_real[i+j*width+k*width*height]+yi_real;
+			//d_bp_imag[i+j*width+k*width*height] = d_bp_imag[i+j*width+k*width*height]+yi_imag;
+			d_bp_real[threadId] = d_bp_real[threadId]+yi_real;
+			d_bp_imag[threadId] = d_bp_imag[threadId]+yi_imag;
 		}
 	}
 	printf("%f %f %f\n", d_bp_real[0],d_bp_real[5],yi_real);
